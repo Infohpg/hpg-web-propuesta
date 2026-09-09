@@ -120,6 +120,40 @@ distinto:
 - **Sala** — un solo equipo vs. varios contratistas → *"Agenda tu evaluación"*
 - **Baño** — moho/grietas, no solo estética → *"Renueva tu baño"*
 
+### Precarga como blob + por qué el video pesa lo que pesa (1.7MB)
+
+Igual que el bug del timestamp 0.8s, esto se encontró probando en el sitio
+YA desplegado (nunca aparece en local): el snap-scroll se veía "roto" —
+saltaba a la parada equivocada. Diagnóstico real (no supuesto): el servidor
+de Sliplane tiene un techo de subida de red de **~280 KB/s** (medido con
+`curl` puro, sin browser de por medio, contra varios archivos de tamaños
+distintos — no es un problema del sitio ni de Chromium). Con el video
+original de 5.4MB eso son 19–27 segundos de descarga; mientras tanto
+`video.currentTime` reportaba el timestamp pedido pero el frame real
+todavía no había llegado, así que se veía contenido de OTRA parada.
+
+**Fix de dos partes:**
+1. `js/scroll-tour.js` ahora precarga el video ENTERO como blob
+   (`fetch` → `blob()` → `URL.createObjectURL`) antes de habilitar
+   cualquier input de scroll/swipe (`state.ready`) — una sola descarga,
+   cero latencia de red por cada scrub después de eso. El `<video>` usa
+   `preload="none"` para que el navegador no compita con esa descarga.
+2. El video se re-comprimió de 5.4MB → **1.7MB** (720px de ancho, crf 33,
+   sigue en múltiplos de keyframe de 0.5s) — a ~280KB/s eso son ~5-6s de
+   espera en vez de 19-27s. Calidad verificada a resolución real de
+   pantalla (1440px, video escalado 2x): sin bloques ni artefactos
+   visibles detrás del scrim.
+
+**Trade-off que Luis debe conocer:** durante esos ~5-6 segundos iniciales
+(mientras el video termina de precargarse) el scroll/swipe sobre el hero
+no hace nada — no se ve roto, simplemente no reacciona todavía (el
+poster + título + CTA ya están visibles y son 100% funcionales desde el
+frame 1). Si esto se siente muy largo en pruebas reales de usuario, las
+dos palancas para bajarlo más son: (a) comprimir aún más el video
+(quedaría con menos nitidez), o (b) alojar el sitio en un servidor con
+más ancho de banda de subida — el límite de ~280KB/s parece ser del
+plan/servidor de Sliplane usado esta noche, no de esta implementación.
+
 ### Fallback `prefers-reduced-motion`
 
 El motor de scroll-jacking **nunca arranca** si el usuario tiene reduced
@@ -171,48 +205,81 @@ el comportamiento esperado (confirmado haciendo scroll hasta ahí).
 
 ---
 
-## 6. QA — Playwright, local (3 rondas antes de deploy)
+## 6. QA — Playwright, 3 rondas LOCAL antes de deploy
 
 Corrido contra `desktop` (1440×900), `iphone` (390×844) y `android`
 (412×915), más una pasada con `reduced_motion=reduce`. Herramienta:
 Python + `playwright` (síncrono), screenshots en
 `/private/tmp/.../scratchpad/qa1/` (no se copiaron al repo).
 
-**Encontrado y corregido durante las rondas:**
+**Encontrado y corregido durante las 3 rondas locales:**
 1. **Watermark gigante en el timestamp 0.8s** (ver sección 2) → resuelto
    moviendo el timestamp a un keyframe exacto (1.0s).
 2. **Watermark visible en las otras 5 paradas** → resuelto con zoom/paneo
    por parada (`WM_HIDE`).
 3. **Servidor local sin soporte de `Range` requests** (`python -m
    http.server` no lo soporta) causaba que el scrub pareciera "saltar a la
-   parada equivocada" en las pruebas automatizadas — **no es un bug del
-   sitio**, es una limitación del server de prueba. Se cambió a `http-server`
-   (soporta `Accept-Ranges`) para las pruebas; **nginx en producción sirve
-   Range requests nativamente**, así que esto no aplica al deploy real.
-4. Pill-nav activo no se auto-scrolleaba a la vista en mobile cuando la
-   parada activa quedaba fuera del viewport horizontal del nav → agregado
-   `scrollIntoView` en `updateUI()`.
+   parada equivocada" en las pruebas automatizadas locales — no era un bug
+   del sitio, era el server de prueba. Se cambió a `http-server` (soporta
+   `Accept-Ranges`) para las pruebas locales.
 
-**Verificado sin problemas:** 0 errores de consola en las 10 páginas × 3
-viewports, 0 overflow horizontal en ningún viewport, snap-scroll adelante/
-atrás funciona (incluyendo re-enganche al volver a `scrollY=0`), los 5
-wizards llegan a confirmación, mobile menu abre/cierra, reduced-motion cae
-al fallback estático apilado sin video ni scroll-jacking.
+**Verificado sin problemas en local:** 0 errores de consola en las 10
+páginas × 3 viewports, 0 overflow horizontal, snap-scroll adelante/atrás
+funciona (incluyendo re-enganche al volver a `scrollY=0`), los 5 wizards
+llegan a confirmación, mobile menu abre/cierra, reduced-motion cae al
+fallback estático apilado sin video ni scroll-jacking.
 
 ---
 
 ## 7. Deploy — Sliplane
 
-Ver la sección de reporte al final de esta sesión (o preguntar a Claude) —
-resumen de lo que se hizo:
-
 - Repo: `github.com/Infohpg/hpg-web-propuesta` (cuenta `Infohpg`, token
-  dedicado en `_credenciales/home-pro-guides/.env`, GITHUB_HPG_TOKEN).
-- `Dockerfile` — nginx:alpine sirviendo el sitio estático completo.
+  dedicado en `_credenciales/home-pro-guides/.env`, `GITHUB_HPG_TOKEN`).
+- `Dockerfile` — `nginx:alpine` sirviendo el sitio estático completo,
+  `.dockerignore` excluye `.git`/README/Dockerfile de la imagen.
 - Proyecto Sliplane autorizado: `project_4ltf8het0m1x` ("AI Search Leads").
-  Verificado en vivo antes de crear nada: solo existía `roof-scanner`
-  (suspended) — no se tocó.
-- Servicio creado: ver detalle abajo (ID, nombre, dominio).
+  Verificado en vivo ANTES de crear nada (`GET .../services`): solo existía
+  `roof-scanner` (suspended) — no se tocó, no se modificó.
+- **Servicio creado:** `service_ljkqz7w1ale8`, nombre `hpg-web-propuesta`,
+  server `server_dw3j8mjh6mrh`, `autoDeploy: true` sobre `main`.
+- **URL pública:** `https://hpg-web-propuesta.sliplane.app`
+
+## 8. QA — 3 rondas MÁS sobre el sitio YA desplegado (producción real)
+
+Esto encontró **dos bugs que NUNCA aparecieron en local** — el motivo
+exacto de por qué el protocolo pide probar contra la URL real y no
+confiar solo en el QA local:
+
+1. **Bug de alineación horizontal del hero** (rondas 1-2 de producción):
+   al cambiar de parada, `.tour-pin` (que tiene `overflow:hidden`)
+   empezaba a acumular `scrollLeft` — el video y el panel de texto se
+   desalineaban más y más con cada scrub, hasta cortar el texto contra el
+   borde izquierdo. Causa raíz: el `activeBtn.scrollIntoView({inline:
+   'center'})` que se había agregado para el pill-nav en mobile —
+   Chromium trata cualquier ancestro con `overflow:hidden` como un
+   scroll-container válido para ese método, aunque nunca estuvo pensado
+   para scrollear. **Fix:** se quitó `scrollIntoView` por completo;
+   ahora se mueve a mano solo `pillnav.scrollLeft` (el único elemento que
+   de verdad tiene `overflow-x:auto`, y solo en mobile).
+2. **Bug de red: el snap-scroll mostraba la parada equivocada** (ronda 3
+   de producción) — diagnosticado y corregido en detalle en la sección 2
+   ("Precarga como blob + por qué el video pesa 1.7MB"): el servidor
+   Sliplane tiene ~280KB/s de subida real (medido con `curl`), el video
+   de 5.4MB tardaba 19-27s en llegar y los seeks del scrub quedaban
+   adelantados al contenido real descargado. Fix de dos partes: precarga
+   completa como blob antes de habilitar la interacción + video
+   recomprimido a 1.7MB.
+
+**Verificado sin problemas en producción (después de los 2 fixes),
+contra `https://hpg-web-propuesta.sliplane.app`:**
+- Snap-scroll completo adelante (Llegada→Baño) y atrás, en desktop
+  (Chromium, wheel) y mobile (viewport 390×844, swipe táctil real) — las
+  6 paradas muestran el contenido correcto, sin desalineación.
+- Los 5 wizards (`roofing.html`, `kitchen.html` probados end-to-end
+  completos) llegan a la pantalla de confirmación.
+- 0 errores de consola y 0 overflow horizontal en las 10 páginas × 3
+  viewports (desktop/iPhone/Android) + reduced-motion, contra la URL real.
+- Video: 1.7MB, ~4.6s de descarga real medida contra el servidor en vivo.
 
 ## Cómo verlo en local
 
@@ -221,6 +288,6 @@ cd web-hpg-propuesta-2026-09-marca-real
 npx http-server -p 8936 -c-1
 # abrir http://localhost:8936/index.html
 # (usar http-server o cualquier server con soporte de Range requests —
-#  python -m http.server NO sirve Range y el video puede verse "trabado"
-#  al scrubear rápido, aunque el deploy real con nginx no tiene ese problema)
+#  python -m http.server NO sirve Range; no afecta producción, que usa nginx)
 ```
+
