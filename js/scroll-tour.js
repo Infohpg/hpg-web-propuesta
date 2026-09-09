@@ -7,19 +7,25 @@
 
    Comportamiento pedido explícitamente (no es scroll continuo):
    - Mientras el hero está "pineado" (scrollY de la página en 0, el
-     hero ocupa toda la pantalla), la rueda/el swipe NO mueve la
-     página — mueve el índice de parada.
-   - Cada paso adelante/atrás dispara un scrub ANIMADO del video
-     (rAF, easing, 450-900ms según la distancia entre timestamps)
-     hacia el siguiente punto, donde el video se congela hasta el
-     próximo input. No es 1:1 con el scroll — es un salto rápido
-     pero visible, nunca instantáneo.
-   - Al llegar a la última parada (Baño) y seguir scrolleando hacia
-     abajo, se libera el control: la página scrollea normal hacia
-     el resto del sitio. Si el usuario vuelve a scrollY=0, el hero
-     se vuelve a "pinear" y el scroll hacia arriba retrocede paradas.
-   - Mobile: swipe vertical dispara el mismo snap (no scroll libre
-     del video).
+     hero ocupa toda la pantalla), la rueda/el swipe/el drag NO mueven
+     la página — mueven el índice de parada.
+   - Wheel (mouse/trackpad): snap simple por tick, scrub animado
+     (rAF-like con setTimeout, easing, 420-900ms) hacia la parada
+     siguiente/anterior.
+   - Touch Y mouse-drag (v6, pedido explícito): mecánica de "agarrar y
+     soltar", NO snap-on-a-bit-of-movement. Mientras el dedo/click está
+     presionado, el video se scrubea LIBREMENTE (1:1) hacia la parada
+     vecina según hacia dónde se mueva — se puede jugar a mitad de
+     camino. Al soltar, resuelve por DIRECCIÓN/VELOCIDAD reciente del
+     gesto (paging tipo iOS), no por posición más cercana: si el
+     arrastre iba hacia la próxima parada, termina ahí aunque no haya
+     llegado a mitad del recorrido físico. Nunca queda a mitad de
+     camino — siempre resuelve hacia una de las dos paradas vecinas
+     (o vuelve al origen si el gesto fue mínimo/ambiguo).
+   - Al llegar a la última parada (Baño) y seguir hacia abajo, se
+     libera el control: la página scrollea normal hacia el resto del
+     sitio. Si el usuario vuelve a scrollY=0, el hero se vuelve a
+     "pinear" y retrocede paradas.
    - prefers-reduced-motion: nunca arranca este motor — ver el
      fallback estático en el propio HTML/CSS (bloques apilados).
    ============================================================ */
@@ -55,7 +61,7 @@
   var STOPS = [
     { time: 1.0,  label: 'Llegada'   },
     { time: 7.5,  label: 'Techo'     },
-    { time: 14.0, label: 'Ventanas'  },
+    { time: 16.5, label: 'Ventanas'  },
     { time: 21.0, label: 'Cocina'    },
     { time: 26.0, label: 'Sala'      },
     { time: 29.5, label: 'Baño'      }
@@ -69,18 +75,56 @@
      del cuadro visible o dentro de la zona ya oscurecida por el
      scrim. Ajustado a ojo contra capturas reales de cada parada. */
   var WM_HIDE = [
-    { scale: 1.14, ty: '-3%'  }, /* 0 Llegada:   marca arriba-izq. */
-    { scale: 1.18, ty: '5%'   }, /* 1 Techo (7.5s): marca ancha abajo-centro */
-    { scale: 1.16, ty: '4%'   }, /* 2 Ventanas:  marca abajo-izq.  */
-    { scale: 1.16, ty: '4%'   }, /* 3 Cocina:    marca abajo-der.  */
-    { scale: 1.14, ty: '-2%'  }, /* 4 Sala:      marca arriba-der. */
-    { scale: 1.16, ty: '4%'   }  /* 5 Baño:      marca abajo-der.  */
+    { scale: 1.06, ty: '-1%'  }, /* 0 Llegada:  marca chica arriba-izq. */
+    { scale: 1.12, ty: '-5%'  }, /* 1 Techo (7.5s): marca chica abajo, se ve al bajar el punto Y del encuadre */
+    { scale: 1.10, ty: '-3%'  }, /* 2 Ventanas (16.5s): marca grande arriba-izq. */
+    { scale: 1.08, ty: '2%'   }, /* 3 Cocina:   marca abajo-der. */
+    { scale: 1.08, ty: '-2%'  }, /* 4 Sala:     marca arriba-der. */
+    { scale: 1.08, ty: '2%'   }  /* 5 Baño:     marca abajo-der. */
   ];
+  /* Override SOLO para mobile — el porqué: con object-fit:cover, en un
+     contenedor angosto y muy alto (mobile) el video llena el alto
+     completo SIN recortar nada verticalmente (el ancho es lo que se
+     recorta ahí), así que `object-position` en Y es un no-op — no hay
+     "de dónde" tomar más techo y menos cielo solo cambiando ese valor.
+     La única forma real de reencuadrar en Y en mobile es agregar zoom
+     de verdad (que sí crea margen para recortar) + paneo — el mismo
+     mecanismo que ya usa WM_HIDE, así que se reusa aquí con valores
+     más fuertes SOLO donde hace falta (Techo: se veía casi todo cielo,
+     confirmado con captura real en 390×844). */
+  var WM_HIDE_MOBILE = {
+    1: { scale: 1.55, ty: '-19%' } /* Techo: empuja fuerte hacia abajo — más techo, menos cielo */
+  };
   function applyWmHide(index){
     if(!videoFrame) return;
-    var w = WM_HIDE[index] || WM_HIDE[0];
+    var w = (mqMobile.matches && WM_HIDE_MOBILE[index]) || WM_HIDE[index] || WM_HIDE[0];
     videoFrame.style.setProperty('--wm-scale', String(w.scale));
     videoFrame.style.setProperty('--wm-ty', w.ty);
+  }
+
+  /* Encuadre por parada — SEPARADO del hide del watermark (ver arriba).
+     El video es 4:3 (1024x768) apaisado; en desktop (contenedor más
+     ancho que el video) object-fit:cover recorta LOS LADOS, así que el
+     eje Y importa para encuadrar (ej. techo: bajar el punto Y muestra
+     más techo y menos cielo). En mobile (contenedor angosto y muy alto)
+     pasa lo contrario: casi no se recorta en Y (se ve el alto completo
+     del frame), pero se recorta MUCHÍSIMO en X — ahí lo que importa es
+     elegir el X correcto para que el elemento protagonista (ventana,
+     isla de cocina, mesa) caiga dentro de la franja angosta visible,
+     no que quede fuera de cuadro. Verificado a mano con capturas reales
+     en los dos breakpoints — no es una fórmula, es lo que se ve bien. */
+  var FRAME_FOCUS = [
+    { desktop: '50% 42%', mobile: '50% 42%' }, /* 0 Llegada */
+    { desktop: '50% 52%', mobile: '50% 40%' }, /* 1 Techo — desktop: más techo, menos cielo (sin bajar tanto que se vea el watermark) */
+    { desktop: '50% 45%', mobile: '62% 42%' }, /* 2 Ventanas — mobile: las 2 ventanas grandes de la derecha */
+    { desktop: '45% 45%', mobile: '38% 40%' }, /* 3 Cocina — mobile: isla + campana */
+    { desktop: '50% 45%', mobile: '55% 40%' }, /* 4 Sala */
+    { desktop: '55% 50%', mobile: '60% 40%' }  /* 5 Baño — mobile: lavamanos + espejo */
+  ];
+  var mqMobile = window.matchMedia('(max-width: 720px)');
+  function applyFrameFocus(index){
+    var f = FRAME_FOCUS[index] || FRAME_FOCUS[0];
+    video.style.setProperty('--tour-pos', mqMobile.matches ? f.mobile : f.desktop);
   }
 
   /* v5: video NATIVO (sin blob-preload forzado). nginx en Sliplane sirve
@@ -111,6 +155,7 @@
     if(progressBar) progressBar.style.width = ((index/last) * 100).toFixed(2) + '%';
     root.classList.toggle('is-mid-tour', index > 0);
     applyWmHide(index);
+    applyFrameFocus(index);
     /* Autoscroll del pill-nav en mobile (el único donde tiene overflow-x).
        A PROPÓSITO no usamos `btn.scrollIntoView()`: Chromium considera
        `.tour-pin` (que tiene `overflow:hidden`, NO pensado como scroll
@@ -196,30 +241,148 @@
   }
   window.addEventListener('wheel', onWheel, { passive: false });
 
-  /* -------- Touch (mobile swipe) -------- */
-  var touchStartY = 0, touchLastY = 0, touchActive = false;
+  /* -------- Drag "agarrar y soltar" (touch + mouse) --------
+     Pedido explícito de Luis, no es el snap simple del wheel: mientras
+     el dedo/click está presionado, el video se scrubea LIBREMENTE
+     (drag directo, 1:1, hacia la parada siguiente O la anterior según
+     hacia dónde se mueva) — se puede "jugar" a mitad de camino entre
+     dos paradas. Al soltar, NO resuelve por posición más cercana —
+     resuelve por la DIRECCIÓN/velocidad del gesto en el momento de
+     soltar (igual que el paging con velocidad de un carrusel nativo
+     tipo iOS): si el arrastre iba claramente hacia la próxima parada,
+     termina en la próxima aunque no haya llegado a mitad del camino
+     físico. Solo si el gesto fue mínimo/ambiguo (casi sin movimiento
+     ni velocidad) vuelve a la parada de origen — nunca queda a mitad
+     de camino congelado entre dos paradas. */
+  var DRAG_RANGE_PX = 220;     /* px de arrastre para cubrir el tramo completo hacia la parada vecina */
+  var FLICK_VELOCITY = 0.35;   /* px/ms — un flick rápido resuelve por dirección aunque el arrastre haya sido corto */
+  var MIN_INTENT_PX = 18;      /* por debajo de esto, se considera "no hubo intención", vuelve al origen */
+
+  var drag = null; /* { originIndex, originTime, startY, lastY, history:[{y,t}] } */
+
+  function isInteractive(target){
+    return !!(target && target.closest && target.closest('button, a, input, textarea, select'));
+  }
+
+  function dragTargetIndex(){
+    /* dir: hacia dónde permite moverse el drag actual (+1 = hacia la
+       próxima parada, -1 = hacia la anterior) según el signo del
+       desplazamiento acumulado ahora mismo. */
+    var dy = drag.lastY - drag.startY; /* >0 = dedo/mouse bajó = intención de avanzar (igual criterio que el swipe de antes) */
+    return dy < 0 ? drag.originIndex + 1 : drag.originIndex - 1;
+  }
+
+  var DRAG_SEEK_MIN_MS = 70; /* throttle de los seeks durante el drag — no uno por pointermove */
+
+  function dragStart(clientY, target){
+    if(!state.ready || state.animating || !atPageTop() || isInteractive(target)) return false;
+    drag = {
+      originIndex: state.index,
+      originTime: video.currentTime,
+      startY: clientY,
+      lastY: clientY,
+      history: [{ y: clientY, t: performance.now() }],
+      lastSeekT: 0
+    };
+    state.animating = true; /* bloquea wheel/goTo mientras se arrastra */
+    try{ video.pause(); }catch(e){}
+    return true;
+  }
+
+  function dragMove(clientY){
+    if(!drag) return false;
+    drag.lastY = clientY;
+    var now = performance.now();
+    drag.history.push({ y: clientY, t: now });
+    /* solo hace falta ~150ms de historial para calcular velocidad al soltar */
+    while(drag.history.length > 2 && now - drag.history[0].t > 150) drag.history.shift();
+
+    var dy = drag.lastY - drag.startY;
+    var targetIdx = dragTargetIndex();
+    var neighborExists = targetIdx >= 0 && targetIdx <= last;
+    if(!neighborExists) return false; /* en el borde (Llegada/Baño): no hay hacia dónde arrastrar en esa dirección */
+
+    if(now - drag.lastSeekT < DRAG_SEEK_MIN_MS) return true; /* consumimos el evento (preventDefault) sin pedir otro seek todavía */
+    drag.lastSeekT = now;
+
+    var progress = clamp(Math.abs(dy) / DRAG_RANGE_PX, 0, 1);
+    var neighborTime = STOPS[targetIdx].time;
+    var v = drag.originTime + (neighborTime - drag.originTime) * progress;
+    try{ video.currentTime = v; }catch(e){}
+    return true;
+  }
+
+  function dragRelease(){
+    if(!drag) return;
+    var d = drag; drag = null;
+
+    var dy = d.lastY - d.startY;
+    var totalPx = Math.abs(dy);
+
+    /* velocidad reciente (últimos ~150ms de historial), no la velocidad
+       promedio de todo el gesto — así un cambio de dirección justo
+       antes de soltar pesa lo que tiene que pesar. */
+    var h = d.history;
+    var vpx = 0;
+    if(h.length >= 2){
+      var first = h[0], lastPt = h[h.length - 1];
+      var dt = lastPt.t - first.t;
+      if(dt > 0) vpx = (lastPt.y - first.y) / dt; /* px/ms, mismo signo que dy */
+    }
+
+    var hasIntent = totalPx >= MIN_INTENT_PX || Math.abs(vpx) >= FLICK_VELOCITY;
+    var dir = (dy < 0 || vpx < 0) ? 1 : -1; /* prioriza la dirección de la velocidad reciente sobre el desplazamiento bruto total */
+    /* Si el desplazamiento bruto y la velocidad reciente apuntan en
+       direcciones distintas (el usuario revirtió el gesto), manda la
+       velocidad reciente — es la señal de hacia dónde iba AL SOLTAR. */
+    if(Math.abs(vpx) >= 0.02){ dir = vpx < 0 ? 1 : -1; }
+    else { dir = dy < 0 ? 1 : -1; }
+
+    var targetIdx = hasIntent ? clamp(d.originIndex + dir, 0, last) : d.originIndex;
+
+    if(targetIdx === state.index && video.currentTime === STOPS[state.index].time){
+      state.animating = false; /* ya está exactamente en su lugar, nada que animar */
+      return;
+    }
+    state.index = targetIdx;
+    updateUI(targetIdx);
+    scrubTo(STOPS[targetIdx].time, function(){ state.animating = false; });
+  }
+
+  /* Touch */
   root.addEventListener('touchstart', function(e){
-    touchStartY = touchLastY = e.touches[0].clientY;
-    touchActive = atPageTop();
+    dragStart(e.touches[0].clientY, e.target);
   }, { passive: true });
 
   root.addEventListener('touchmove', function(e){
-    if(!touchActive) return;
-    touchLastY = e.touches[0].clientY;
-    var dy = touchLastY - touchStartY; /* >0 = dedo baja = intención de subir */
-    var intentForward = dy < 0;
-    var canConsume = intentForward ? (state.index < last) : (state.index > 0);
-    if(canConsume) e.preventDefault();
+    if(!drag) return;
+    var moved = dragMove(e.touches[0].clientY);
+    if(moved) e.preventDefault();
   }, { passive: false });
 
-  root.addEventListener('touchend', function(){
-    if(!touchActive) return;
-    touchActive = false;
-    var dy = touchLastY - touchStartY;
-    if(Math.abs(dy) < 26) return; /* toque, no swipe */
-    if(dy < 0) goTo(state.index + 1);
-    else goTo(state.index - 1);
-  }, { passive: true });
+  root.addEventListener('touchend', function(){ dragRelease(); }, { passive: true });
+  root.addEventListener('touchcancel', function(){ drag = null; }, { passive: true });
+
+  /* Mouse (desktop) — mismo gesto de agarrar/soltar, pedido explícito
+     para que el drag sea consistente entre mouse y touch. El wheel de
+     arriba sigue funcionando aparte (snap simple por tick). */
+  var mouseDragging = false;
+  root.addEventListener('mousedown', function(e){
+    if(e.button !== 0 || isInteractive(e.target)) return;
+    if(dragStart(e.clientY, e.target)){
+      mouseDragging = true;
+      e.preventDefault(); /* evita selección de texto mientras se arrastra */
+    }
+  });
+  window.addEventListener('mousemove', function(e){
+    if(!mouseDragging || !drag) return;
+    dragMove(e.clientY);
+  });
+  window.addEventListener('mouseup', function(){
+    if(!mouseDragging) return;
+    mouseDragging = false;
+    dragRelease();
+  });
 
   /* -------- Pill-nav / hint: salto directo (scrub también, no teletransporte) -------- */
   navBtns.forEach(function(btn, i){
@@ -241,6 +404,11 @@
   }
   if(video.readyState >= 1){ boot(); }
   else { video.addEventListener('loadedmetadata', boot, { once: true }); }
+
+  /* Reaplicar el encuadre si cambia el breakpoint (rotar el teléfono, etc.) */
+  var mqChangeHandler = function(){ applyFrameFocus(state.index); };
+  if(mqMobile.addEventListener) mqMobile.addEventListener('change', mqChangeHandler);
+  else if(mqMobile.addListener) mqMobile.addListener(mqChangeHandler);
 
   /* Si por lo que sea el usuario llega con scrollY>0 pero el hero
      vuelve a quedar pineado (scrollY vuelve a 0), no hace falta nada
