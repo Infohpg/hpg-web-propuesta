@@ -43,6 +43,18 @@
 
   var video = root.querySelector('.tour-video');
   var videoFrame = root.querySelector('.tour-video-frame');
+
+  /* Revelar el <video> recién cuando tiene un frame real decodificado
+     (ver .tour-video/.tour-video.is-ready en scroll-tour.css) — evita
+     que su superficie de render propia (opaca en varios navegadores
+     mientras carga) tape el fondo de abajo. 'loadeddata' es el
+     evento correcto (no 'canplay', que puede tardar de más esperando
+     suficiente buffer para reproducir sin cortes — acá solo
+     necesitamos UN frame pintable, no la promesa de reproducción
+     fluida). Si por lo que sea nunca dispara (falla real de red),
+     el fondo CSS de .tour-video-frame se queda visible para siempre
+     — nunca pantalla vacía. */
+  video.addEventListener('loadeddata', function(){ video.classList.add('is-ready'); }, { once: true });
   var panels = Array.prototype.slice.call(root.querySelectorAll('.tour-panel'));
   var navBtns = Array.prototype.slice.call(root.querySelectorAll('.tour-pillnav button'));
   var progressBar = root.querySelector('.tour-progress-bar');

@@ -62,7 +62,18 @@
   position:absolute; inset:0; width:100%; height:100%;
   object-fit: cover; object-position: var(--tour-pos, center 42%);
   background: transparent;
+  /* Oculto hasta que el navegador tenga un frame real que mostrar
+     (JS agrega .is-ready en 'loadeddata'). Algunos navegadores —
+     sobre todo mobile — pintan el <video> con una superficie propia
+     opaca/negra mientras está cargando activamente, ANTES de tener
+     el primer frame — eso ignora background:transparent y tapa la
+     imagen de fondo de .tour-video-frame de abajo. Reportado en vivo:
+     "aparece la casa un instante y after pantalla azul". Con esto el
+     fondo siempre se ve nítido hasta que el video realmente tiene
+     algo que mostrar, y entra con fade en vez de golpe. */
+  opacity: 0; transition: opacity .45s ease;
 }
+.tour-video.is-ready{ opacity: 1; }
 @keyframes tourIdleBreath{
   0%   { transform: scale(var(--wm-scale, 1.14)) translate3d(0, var(--wm-ty, 0%), 0); }
   100% { transform: scale(calc(var(--wm-scale, 1.14) + 0.03)) translate3d(0, var(--wm-ty, 0%), 0); }
