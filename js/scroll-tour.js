@@ -47,7 +47,6 @@
   var navBtns = Array.prototype.slice.call(root.querySelectorAll('.tour-pillnav button'));
   var progressBar = root.querySelector('.tour-progress-bar');
   var hint = root.querySelector('.tour-scroll-hint');
-  var hintText = root.querySelector('.tour-scroll-hint-text');
 
   /* Timestamps reales (segundos) — sacados revisando el video con
      ffprobe/ffmpeg, no estimados. Cada uno es el frame donde la
@@ -128,33 +127,40 @@
     video.style.setProperty('--tour-pos', mqMobile.matches ? f.mobile : f.desktop);
   }
 
-  /* v7: vuelta a blob-preload FORZADO (se probó nativo con preload="auto"
-     primero, como pedía el protocolo — nginx en Sliplane sí sirve Range
-     bien, confirmado con curl, y localmente/con red rápida funcionaba
-     perfecto). Pero en producción real (servidor con ~280KB/s medido)
-     seguía reapareciendo el desfase para SALTOS a zonas del archivo
-     todavía no bufferadas: el evento 'seeked' puede disparar antes de
-     que el frame esté realmente pintado cuando la red es lenta —
-     confirmado en vivo: currentTime ya marcaba 16.5 (Ventanas) pero el
-     video seguía mostrando el frame de Techo varios segundos después.
-     Con blob-preload, una vez cargado el archivo entero NO hay más
-     dependencia de red por scrub — cero riesgo de este bug. El video
-     se recomprimió a ~5MB (crf 27) para que la espera inicial sea
-     razonable (~15-18s a 280KB/s) sin perder nitidez notable. */
-  var state = { index: 0, animating: false, ready: false, animatingSince: 0 };
+  /* v8: video NATIVO, sin ningún candado global de "esperar a que cargue
+     todo" (se probaron DOS estrategias distintas antes, las dos con
+     problemas reales — documentadas en el README secciones 9.6/10 para
+     no repetir el mismo camino):
+       - Nativo sin gate (v5): funcionaba pero el desfase de seek podía
+         reaparecer en redes lentas.
+       - Blob-preload forzado (v7): resolvía el desfase, pero el flag
+         global "no interactuable hasta que esté 100% listo" es frágil
+         por diseño — encontrado en vivo DOS veces: (a) si el fetch/
+         'loadedmetadata' del blob no dispara por lo que sea, el flag
+         queda en false PARA SIEMPRE y el sitio se ve muerto aunque el
+         archivo ya haya bajado entero (confirmado: GET 200 completo,
+         candado sigue pegado); (b) un solo touchcancel a mitad de un
+         drag podía dejar `state.animating` pegado en true para siempre.
+     Decisión final: el <video> es interactuable DESDE EL PRIMER
+     INSTANTE. nginx en Sliplane sirve Range requests bien (confirmado
+     con curl — 206 + Content-Range correctos), así que un seek a una
+     zona todavía no bufferada simplemente tarda lo que tarde esa
+     descarga puntual — el navegador la maneja solo. No hay ningún flag
+     global que pueda "quedar pegado": cada transición se resuelve por
+     su cuenta esperando el evento 'seeked' de ESA seek específica (ver
+     scrubTo más abajo), con su propio timeout de seguridad acotado. */
+  var state = { index: 0, animating: false, animatingSince: 0 };
   var rafId = null;
 
-  /* Candado anti-atasco: state.animating puede quedar pegado en `true`
-     para siempre si un gesto se interrumpe de forma anómala (ej.
-     touchcancel real de iOS a mitad de drag, o el navegador perdiendo
-     el mouseup si el usuario suelta fuera de la ventana) — y como TODO
-     entra por goTo()/dragStart(), que chequean `state.animating`, un
-     candado pegado deja el recorrido MUERTO para siempre (encontrado en
-     vivo: "no reacciona a nada" en producción, reproducible). Nunca
-     debería tardar más de ~1.8s en resolver (900ms de scrub + 900ms de
-     margen esperando 'seeked'), así que 3s de sobra es un atasco real,
-     no una animación legítima en curso — se libera solo. */
-  var ANIMATING_SAFETY_MS = 3000;
+  /* Candado anti-atasco POR TRANSICIÓN (no global): state.animating se
+     usa solo para no pisar una transición en curso con otra — puede
+     quedar pegado en `true` si un gesto se interrumpe de forma anómala
+     (touchcancel real a mitad de drag, o el navegador perdiendo el
+     mouseup si el usuario suelta fuera de la ventana). Nunca debería
+     tardar más de ~3.5s en resolver aun en el peor caso de red (900ms
+     de scrub + 2.5s de margen esperando 'seeked'), así que 5s de sobra
+     es un atasco real, no una animación legítima — se libera solo. */
+  var ANIMATING_SAFETY_MS = 5000;
   function setAnimating(v){
     state.animating = v;
     state.animatingSince = v ? Date.now() : 0;
@@ -166,43 +172,6 @@
       drag = null;
       mouseDragging = false;
     }
-  }
-
-  /* Estado de carga visible — SIN esto el hero se ve "roto" durante los
-     varios segundos (a veces bastantes más, el ancho de banda del
-     server midió entre 5 y 37s en la misma noche) que tarda la
-     precarga completa del blob: probado en vivo, clickear un pill-nav
-     o scrollear en ese lapso no hacía NADA y no había ninguna señal de
-     que la página seguía viva — se sentía roto, no "cargando". */
-  function setLoadingUI(isLoading){
-    root.classList.toggle('is-tour-loading', isLoading);
-    if(hintText){
-      hintText.innerHTML = isLoading
-        ? '<span class="tour-loading-dot"></span> Cargando el recorrido…'
-        : 'Scroll para recorrer la casa';
-    }
-  }
-
-  function markReady(){
-    state.ready = true;
-    setLoadingUI(false);
-  }
-
-  function loadFullVideo(){
-    var sourceEl = video.querySelector('source');
-    var src = (sourceEl && sourceEl.getAttribute('src')) || video.currentSrc;
-    if(!src || typeof fetch !== 'function'){ markReady(); return; }
-    fetch(src).then(function(res){ return res.blob(); }).then(function(blob){
-      var blobUrl = URL.createObjectURL(blob);
-      video.addEventListener('loadedmetadata', markReady, { once: true });
-      video.src = blobUrl;
-      video.load();
-    }).catch(function(){
-      /* Si el fetch falla seguimos con el <source> normal streameando —
-         se habilita igual; en el peor caso un scrub muy rápido podría
-         verse levemente atrasado, mejor eso que dejar el tour muerto. */
-      markReady();
-    });
   }
 
   function clamp(v, min, max){ return Math.max(min, Math.min(max, v)); }
@@ -243,10 +212,15 @@
 
     function landFinal(){
       try{ video.currentTime = targetTime; }catch(e){}
-      /* No soltar el candado hasta confirmar que el navegador ya
-         decodificó/pintó ese frame — 'seeked' es la señal real, no
-         un timer optimista. Timeout de seguridad por si el evento
-         no llega (ej. red muy lenta o falla momentánea). */
+      /* No soltar el candado de ESTA transición hasta confirmar que el
+         navegador ya decodificó/pintó ese frame — 'seeked' es la señal
+         real, no un timer optimista. Sin blob-preload esa seek puede
+         tener que pedir datos por red (Range) si cae en una zona
+         todavía no bufferada, así que el margen de seguridad es más
+         generoso que antes (2.5s) — pero es SOLO de esta transición,
+         nunca un flag global: si se vence, esta transición particular
+         se da por terminada igual (con el frame que haya en pantalla)
+         y el resto del sitio sigue interactuable normalmente. */
       var settled = false;
       function onSeeked(){
         if(settled) return;
@@ -256,7 +230,7 @@
         rafId = null;
         onDone();
       }
-      var safety = setTimeout(onSeeked, 900);
+      var safety = setTimeout(onSeeked, 2500);
       video.addEventListener('seeked', onSeeked);
     }
 
@@ -271,7 +245,6 @@
   }
 
   function goTo(newIndex){
-    if(!state.ready) return; /* metadata del video aún no cargó — ignorar el input, no romper nada visualmente */
     clearStuckLock();
     newIndex = clamp(newIndex, 0, last);
     if(newIndex === state.index || state.animating) return;
@@ -337,7 +310,7 @@
 
   function dragStart(clientY, target){
     clearStuckLock();
-    if(!state.ready || state.animating || !atPageTop() || isInteractive(target)) return false;
+    if(state.animating || !atPageTop() || isInteractive(target)) return false;
     drag = {
       originIndex: state.index,
       originTime: video.currentTime,
@@ -468,22 +441,18 @@
   }
 
   /* -------- Boot: dejar el video pausado exactamente en la parada 0 --------
-     Con preload="none" el <video> no descarga nada solo — recién hay
-     'loadedmetadata' cuando loadFullVideo() termina de bajar el blob y
-     lo asigna. Mientras tanto se ve el `poster` (JPG estático) — estado
-     de carga perfectamente válido, título/CTA ya son 100% funcionales.
-     state.ready lo pone en true el propio listener de loadFullVideo(),
-     no acá — así el wheel/drag quedan bloqueados hasta que el archivo
-     completo esté en memoria (cero dependencia de red en cada scrub). */
+     preload="auto" — el navegador arranca a bufferar solo, sin que
+     ningún JS tenga que forzar nada. En cuanto hay METADATA (rápido,
+     es solo el header del archivo) se puede posicionar en la parada 0
+     y quedar interactuable — no hace falta esperar a que el video
+     entero esté descargado. */
   function boot(){
     try{ video.currentTime = STOPS[0].time; }catch(e){}
     video.pause();
     updateUI(0);
   }
-  setLoadingUI(true);
   if(video.readyState >= 1){ boot(); }
   else { video.addEventListener('loadedmetadata', boot, { once: true }); }
-  loadFullVideo();
 
   /* Reaplicar el encuadre si cambia el breakpoint (rotar el teléfono, etc.) */
   var mqChangeHandler = function(){ applyFrameFocus(state.index); };

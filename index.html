@@ -39,11 +39,11 @@
        timestamp fijo, donde el video se congela. Ver js/scroll-tour.js.
        Fallback prefers-reduced-motion: bloques estáticos apilados abajo
        (mismo HTML, otro CSS — sin JS de scroll-jacking). -->
-  <section class="tour is-tour-loading" id="recorrido" data-component="video-tour" aria-label="Recorrido por la casa">
+  <section class="tour" id="recorrido" data-component="video-tour" aria-label="Recorrido por la casa">
     <div class="tour-pin">
 
       <div class="tour-video-frame">
-        <video class="tour-video" muted playsinline preload="none" poster="./assets/images/tour-poster.jpg" aria-hidden="true">
+        <video class="tour-video" muted playsinline preload="auto" poster="./assets/images/tour-poster.jpg" aria-hidden="true">
           <source src="./assets/video/house-tour.mp4" type="video/mp4">
         </video>
       </div>
