@@ -49,11 +49,19 @@
      cambiar de índice. Nunca deja huecos: cover ya llena el marco,
      esto solo agrega zoom/paneo extra. */
   --wm-scale: 1.14; --wm-ty: 0%;
+  /* Red de seguridad de imagen: fondo plano vía CSS background-image
+     (no depende del elemento <video> ni de su atributo poster) — se ve
+     reportado en vivo en mobile que a veces NI el poster carga (red
+     lenta/intermitente cargando poster+video de R2 al mismo tiempo) y
+     queda una pantalla en blanco/azul. Este background siempre está,
+     así que si el video falla no queda nunca vacío. */
+  background-image: url('./assets/images/tour-poster.jpg');
+  background-size: cover; background-position: center 42%;
 }
 .tour-video{
   position:absolute; inset:0; width:100%; height:100%;
   object-fit: cover; object-position: var(--tour-pos, center 42%);
-  background: var(--bg);
+  background: transparent;
 }
 @keyframes tourIdleBreath{
   0%   { transform: scale(var(--wm-scale, 1.14)) translate3d(0, var(--wm-ty, 0%), 0); }
