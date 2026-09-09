@@ -83,8 +83,37 @@
     videoFrame.style.setProperty('--wm-ty', w.ty);
   }
 
-  var state = { index: 0, animating: false };
+  /* state.ready=false hasta que el video esté DESCARGADO COMPLETO en
+     memoria (blob local, ver loadFullVideo() más abajo). Streameado
+     por red, cada scrub dispara varias micro-peticiones Range durante
+     los ~450-900ms de la animación — en producción (Sliplane, latencia
+     real) eso hace que currentTime reporte el target pero el frame
+     decodificado se quede atrás (verificado en vivo: currentTime=21
+     con video.buffered todavía en ~14 → se veía el frame de otra
+     parada). El archivo pesa ~5MB, así que precargarlo entero antes de
+     habilitar la interacción es la solución robusta: una sola descarga,
+     cero latencia de red por scrub. Mientras carga, el wheel/touch
+     sigue "pineando" la sección (no se ve raro) pero goTo() no hace
+     nada hasta que ready=true. */
+  var state = { index: 0, animating: false, ready: false };
   var rafId = null;
+
+  function loadFullVideo(){
+    var sourceEl = video.querySelector('source');
+    var src = (sourceEl && sourceEl.getAttribute('src')) || video.currentSrc;
+    if(!src || typeof fetch !== 'function'){ state.ready = true; return; }
+    fetch(src).then(function(res){ return res.blob(); }).then(function(blob){
+      var blobUrl = URL.createObjectURL(blob);
+      video.addEventListener('loadedmetadata', function(){ state.ready = true; }, { once: true });
+      video.src = blobUrl;
+      video.load();
+    }).catch(function(){
+      /* Si el fetch falla (CORS, offline, etc.) seguimos con el <source>
+         normal que ya está streameando — se habilita igual, en el peor
+         caso un scrub muy rápido podría verse levemente atrasado. */
+      state.ready = true;
+    });
+  }
 
   function clamp(v, min, max){ return Math.max(min, Math.min(max, v)); }
   function easeInOutCubic(t){ return t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2, 3)/2; }
@@ -95,9 +124,18 @@
     if(progressBar) progressBar.style.width = ((index/last) * 100).toFixed(2) + '%';
     root.classList.toggle('is-mid-tour', index > 0);
     applyWmHide(index);
+    /* Autoscroll del pill-nav en mobile (el único donde tiene overflow-x).
+       A PROPÓSITO no usamos `btn.scrollIntoView()`: Chromium considera
+       `.tour-pin` (que tiene `overflow:hidden`, NO pensado como scroll
+       container) un ancestro "scrollable" válido para ese método, y
+       termina moviendo su scrollLeft — eso desalinea todo el hero
+       (video + panel de texto) horizontalmente. Se vio en vivo. En vez
+       de eso, movemos SOLO `.tour-pillnav.scrollLeft` a mano. */
+    var pillnav = navBtns[0] && navBtns[0].parentElement;
     var activeBtn = navBtns[index];
-    if(activeBtn && activeBtn.scrollIntoView){
-      activeBtn.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
+    if(pillnav && activeBtn && pillnav.scrollWidth > pillnav.clientWidth){
+      var target = activeBtn.offsetLeft - (pillnav.clientWidth - activeBtn.offsetWidth) / 2;
+      pillnav.scrollTo({ left: Math.max(0, target), behavior: 'smooth' });
     }
   }
 
@@ -125,6 +163,7 @@
   }
 
   function goTo(newIndex){
+    if(!state.ready) return; /* video aún descargando entero — ignorar el input, no romper nada visualmente */
     newIndex = clamp(newIndex, 0, last);
     if(newIndex === state.index || state.animating) return;
     state.index = newIndex;
@@ -194,6 +233,7 @@
   }
   if(video.readyState >= 1){ boot(); }
   else { video.addEventListener('loadedmetadata', boot, { once: true }); }
+  loadFullVideo();
 
   /* Si por lo que sea el usuario llega con scrollY>0 pero el hero
      vuelve a quedar pineado (scrollY vuelve a 0), no hace falta nada
