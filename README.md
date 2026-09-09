@@ -9,6 +9,14 @@ Trabajo hecho de noche, sin supervisión — Luis revisa esto en la mañana.
 Todo lo de abajo está probado (Playwright, 3 rondas locales + intento de
 3 rondas en producción, ver sección QA).
 
+**Actualización — ronda de feedback de Luis (misma noche, post-deploy):**
+Luis probó el sitio en vivo y pidió una segunda tanda de ajustes — ver
+sección 9 al final de este README para el detalle completo (copy
+emocional en vez de ROI/reventa, reencuadre de Ventanas y Techo,
+brillo del video, y el cambio de mecánica a "agarrar y soltar" con
+resolución por dirección/velocidad). Todo lo de abajo (secciones 1-8)
+sigue siendo válido salvo donde la sección 9 lo indique explícitamente.
+
 ---
 
 ## 1. Paleta "premium" del brand kit — criterio aplicado
@@ -290,4 +298,155 @@ npx http-server -p 8936 -c-1
 # (usar http-server o cualquier server con soporte de Range requests —
 #  python -m http.server NO sirve Range; no afecta producción, que usa nginx)
 ```
+
+---
+
+## 9. Segunda ronda — feedback de Luis sobre el sitio YA en vivo
+
+Luis probó `https://hpg-web-propuesta.sliplane.app` y pidió 5 ajustes.
+Detalle de cada uno:
+
+### 9.1 Copy — de "reventa/ROI" a emocional (identidad + deseo)
+
+Reescrito TODO el copy del recorrido salvo la parada **Sala** (el copy de
+"un solo equipo vs. contratistas" se dejó tal cual, a pedido explícito).
+Textos finales:
+
+| Parada | Headline | CTA |
+|---|---|---|
+| Llegada | *"No esperes a que te llegue la casa de tus sueños — convierte la tuya, ahora."* (frase de Luis, casi textual) | Conviértela hoy |
+| Techo | *"Duerme tranquilo la próxima vez que truene fuerte sobre tu casa."* (se sacó la mención al seguro) | Inspecciona tu techo |
+| Ventanas | *"Se nota apenas entras: luz real, silencio real, una casa que por fin se siente tuya."* | Renueva tus ventanas |
+| Cocina | *"La cocina donde por fin quieres reunir a toda tu familia."* | Diseña tu cocina |
+| Sala | *(sin cambios — "Coordinar tres contratistas distintos no debería ser tu segundo trabajo.")* | Agenda tu evaluación |
+| Baño | *"Tu baño debería sentirse como un respiro, no como algo que evitas mirar de cerca."* | Renueva tu baño |
+
+### 9.2 Encuadre — Ventanas y Techo
+
+- **Ventanas**: timestamp movido de 14.0s → **16.5s** (múltiplo de 0.5s,
+  keyframe exacto). A los 14s las ventanas quedaban de fondo/lateral; a
+  16.5s hay 4 ventanas grandes de frente, bien iluminadas, ocupando la
+  mitad inferior del cuadro — verificado con grillas de frames antes de
+  elegir.
+- **Techo**: se mantiene en 7.5s (ya elegido en la ronda anterior), pero
+  se corrigió un problema real de encuadre en mobile (ver 9.3).
+
+### 9.3 Encuadre por parada en mobile — hallazgo técnico real
+
+El video es 4:3 apaisado. Con `object-fit:cover`:
+- En **desktop** (contenedor más ancho que el video) el recorte pasa en
+  el eje **Y** — `object-position` vertical sí tiene efecto real.
+- En **mobile** (contenedor angosto y muy alto) el recorte pasa casi
+  entero en el eje **X** — el alto se ve casi completo sin recortar, así
+  que `object-position` vertical es básicamente un **no-op** ahí.
+
+Esto se confirmó con capturas reales: Techo en mobile se veía "todo
+cielo, nada de techo" a pesar de tener un valor de encuadre vertical
+configurado, porque ese valor no podía hacer nada (no había margen para
+recortar). La solución real fue agregar zoom+paneo de verdad (mismo
+mecanismo que ya usa `WM_HIDE` para tapar el watermark, ahora con
+variantes `WM_HIDE_MOBILE` específicas) que sí generan margen para
+recortar y entonces sí reencuadran. Para el resto de las paradas
+(Ventanas/Cocina/Sala/Baño) el ajuste fue vía `FRAME_FOCUS` — un
+`object-position` en X distinto para mobile, que ahí sí tiene efecto
+real. Las 6 paradas se verificaron con capturas reales en 390×844
+(mobile) y 1440×900 (desktop) — no solo se asumió que el ajuste de
+desktop ya cubría mobile.
+
+### 9.4 Brillo del video
+
+Re-encode con `eq=brightness=0.06:contrast=1.08:saturation=1.08:gamma=1.12`
+antes de escalar — notablemente más luminoso sin lavar el contraste ni
+verse artificial. Verificado comparando frames antes/después de las 6
+paradas.
+
+### 9.5 Interacción — de "snap con un poco de scroll" a "agarrar y soltar"
+
+Cambio de mecánica real, no solo estético (`js/scroll-tour.js`, función
+`dragStart`/`dragMove`/`dragRelease`):
+
+- Con el dedo/click **presionado**, el video se scrubea **libremente**
+  (1:1, sin snap) hacia la parada siguiente o anterior según hacia dónde
+  se mueva — se puede "jugar" a mitad de camino.
+- Al **soltar**, resuelve por **dirección/velocidad reciente del gesto**
+  (paging tipo iOS con velocidad), no por posición más cercana: si el
+  arrastre iba hacia la próxima parada, termina ahí aunque no haya
+  llegado a mitad del camino físico. Un gesto mínimo/ambiguo (sin
+  desplazamiento ni velocidad real) vuelve a la parada de origen.
+  Nunca queda a mitad de camino — siempre resuelve hacia una de las dos
+  paradas vecinas.
+- Implementado igual para **touch y mouse-drag** (desktop). El **wheel**
+  (rueda/trackpad) se dejó con el snap simple de siempre — es la
+  interacción "de repuesto" en desktop, el drag con mouse es la nueva
+  interacción principal ahí también.
+- Ventana de arrastre: 220px de movimiento cubren el tramo completo
+  hacia la parada vecina. Umbral de intención: 18px de desplazamiento
+  total O 0.35px/ms de velocidad reciente (lo que se cumpla primero).
+  La velocidad se calcula sobre los últimos ~150ms de historial del
+  gesto (no el promedio de todo el gesto), así un cambio de dirección
+  justo antes de soltar pesa lo que tiene que pesar.
+
+**Verificado con Playwright, contra el sitio en producción, repitiendo
+el gesto 5 veces seguidas** (soltar en el punto medio exacto — 110px de
+los 220px del rango): en las 5 repeticiones consecutivas el video
+resolvió por dirección — Ventanas→Cocina→Sala→Baño→(clamp en Baño) — y
+la etiqueta activa del pill-nav cambia **instantáneamente** al soltar
+(antes de que termine la animación del video), confirmando que la
+resolución de dirección no depende de que el scrub visual ya haya
+llegado. También se probó soltar dragueando hacia atrás, y revertir la
+dirección justo antes de soltar (la velocidad reciente manda sobre el
+desplazamiento total acumulado) — ambos casos se comportan como se
+espera.
+
+### 9.6 Bug real encontrado en esta ronda — y por qué el video terminó en 2.3MB
+
+Se probó primero, como pedía el protocolo, un `<video preload="auto">`
+**nativo sin blob-preload** (nginx sí sirve Range requests bien,
+confirmado con `curl`). Funcionaba perfecto en local y en las primeras
+pruebas rápidas de producción. Pero probando más a fondo (saltos a
+zonas del archivo lejos de donde ya se había reproducido, con esperas
+realistas) **reapareció el mismo bug de desfase de la ronda anterior**:
+`video.currentTime` ya marcaba el timestamp correcto (ej. 16.5s,
+Ventanas) pero el frame VISIBLE seguía siendo el de la parada anterior
+varios segundos después — el evento `seeked` puede disparar antes de
+que el frame esté realmente pintado cuando la red es lenta.
+
+Peor: al medir el ancho de banda real del servidor de Sliplane varias
+veces con `curl` puro (sin browser de por medio), el resultado **no fue
+estable** — osciló entre ~136KB/s y ~486KB/s en la misma noche, sin
+patrón claro (probablemente un servidor compartido con carga variable).
+Con un archivo de 5MB eso significa entre 10 y 37 segundos de descarga
+según el momento — inaceptable para depender de que "ya debería estar
+buffereado" en un seek a media reproducción.
+
+**Decisión final:** volver al blob-preload forzado (la versión
+100% confiable — cero dependencia de red una vez cargado el archivo
+entero) pero con el video comprimido más agresivo para que la espera
+inicial sea corta incluso en el escenario de banda ancha mala:
+
+| Intento | Resolución | Tamaño | Descarga @280KB/s | Descarga @136KB/s (peor caso medido) |
+|---|---|---|---|---|
+| v1 (ronda anterior) | 1280px | 8.2MB | ~29s | ~60s |
+| v2 nativo (esta ronda) | 1024px crf23 | 8.3MB | — (bug de desfase, no llegó a probarse el tamaño) |
+| v3 blob 5MB | 1024px crf27 | 5.0MB | ~18s | ~37s (medido real) |
+| **v4 FINAL** | **720px crf30** | **2.3MB** | **~8s** | **~17s** |
+
+El video final (`assets/video/house-tour.mp4`, 2.3MB) se probó en vivo
+contra producción: blob listo en **6.9s** en una corrida real. Calidad
+verificada a resolución de pantalla completa (1440px) — se nota algo
+menos nítido que la versión de 8MB, pero sigue siendo una buena imagen
+de fondo, y la confiabilidad del scrub (cero desfase, siempre) importa
+más que los últimos puntos de nitidez dado el ancho de banda real
+disponible esta noche.
+
+**Para Luis:** si en un hosting con más ancho de banda de subida (no
+Sliplane, o un plan superior) se quiere volver a una resolución/bitrate
+más alto, el video fuente en `/tmp` de esta sesión ya no existe pero el
+comando de encode queda documentado acá — solo hay que resubir el
+original de Luma AI y correr:
+```
+ffmpeg -i ORIGINAL.mp4 -vf "eq=brightness=0.06:contrast=1.08:saturation=1.08:gamma=1.12,scale=1024:-2" \
+  -r 24 -c:v libx264 -preset veryslow -crf 24 -g 12 -keyint_min 12 -sc_threshold 0 -pix_fmt yuv420p -an -movflags +faststart house-tour.mp4
+```
+(y recalcular timestamps si el `-g 12`/framerate cambian).
 
