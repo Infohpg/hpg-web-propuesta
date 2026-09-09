@@ -45,7 +45,13 @@
 
       <div class="tour-video-frame">
         <video class="tour-video" muted playsinline preload="auto" poster="./assets/images/tour-poster.jpg" aria-hidden="true">
-          <source src="./assets/video/house-tour.mp4" type="video/mp4">
+          <!-- Servido por jsDelivr (CDN gratis sobre este mismo repo de GitHub) en vez
+               del propio servidor de Sliplane — ese server comparte ancho de banda con
+               el n8n de producción y variaba entre 136-486KB/s, muy inestable. jsDelivr
+               midió ~700-770KB/s constante. Si se sube una versión nueva del video, hay
+               que pushear a GitHub Y purgar la cache de jsDelivr (ver README) o usar la
+               URL con @<commit-sha> en vez de @main para forzar la versión nueva. -->
+          <source src="https://cdn.jsdelivr.net/gh/Infohpg/hpg-web-propuesta@main/assets/video/house-tour.mp4" type="video/mp4">
         </video>
       </div>
       <!-- Solo visible en reduced-motion: hero estático de la parada 0 -->
