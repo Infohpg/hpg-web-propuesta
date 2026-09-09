@@ -1,0 +1,289 @@
+/* =========================================================
+   Home Pro Guides — Propuesta 2026-09 — VERSIÓN MARCA REAL
+   Mismo HTML/estructura/animaciones/wizard que la propuesta
+   original — SOLO cambian estos design tokens (color + tipografía),
+   extraídos del manual de marca real de HPG:
+     ~/Library/.../HOME_PRO_GUIDES_MANUAL_MARCA_PREVIEW.pdf
+   Paleta oficial (pág. 3 del manual):
+     Azul Navy   #0C3166  (principal)
+     Aguamarina  #00C6C6  (secundario)
+     Naranja     #FF6339  (secundario, "uso moderado" — color de acción,
+                           confirmado en vivo: es el color del botón
+                           "Next" en el formulario real de HPG)
+     Blanco/Negro principales, para texto e impresión.
+   Tipografía oficial: "Keyboard" (Fenotype, Light→Black + itálicas).
+   No es un Google Font ni está disponible para licenciar rápido en
+   este prototipo — se sustituye por 'Nunito', el free font más
+   cercano en forma (geometric sans de terminales redondeadas) y con
+   la misma cobertura de pesos 300→900 que pide el manual. Cambiar
+   por la fuente real "Keyboard" con su licencia es un pendiente de
+   producción, no de esta propuesta.
+   ========================================================= */
+
+@import url('https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,300;0,400;0,600;0,700;0,800;0,900;1,400;1,600;1,800&display=swap');
+
+:root{
+  /* color — extraído del manual de marca real */
+  --bg: #071B33;            /* navy casi negro — fondo del recorrido/fotos (no está en el manual como color de marca; es solo el "negro" funcional para que el texto blanco sea legible sobre fotos, en la misma familia tonal que el Navy) */
+  --bg-elevated: #0C3166;
+  --primary: #0C3166;       /* Azul Navy — PRINCIPAL del manual */
+  --primary-alt: #123E82;   /* variante hover, misma familia */
+  --gold: #FF6339;          /* Naranja — color de acción del manual (botón "Next" real) */
+  --gold-soft: #FF8B69;
+  --cream: #00C6C6;         /* Aguamarina — secundario del manual */
+  --text: #FFFFFF;          /* Blanco — principal del manual */
+  --text-muted: #C7D9EC;
+  --bg-light: #EFFBFB;      /* celeste/aguamarina muy claro — el fondo real que Luis vio en el formulario en vivo de HPG */
+  --text-dark: #0C3166;     /* Azul Navy también como texto sobre fondo claro, por el manual */
+  --text-dark-muted: #57708F;
+  --line: rgba(255,255,255,0.14);
+  --line-dark: rgba(12,49,102,0.14);
+  --danger: #B4472F;
+
+  /* type — "Keyboard" (manual) sustituida por Nunito (ver nota arriba) */
+  --font-head: 'Nunito', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-body: 'Nunito', -apple-system, BlinkMacSystemFont, sans-serif;
+
+  /* motion */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+
+  /* layout */
+  --header-h: 76px;
+  --container: 1240px;
+}
+
+
+*, *::before, *::after{ box-sizing: border-box; }
+html{ scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce){ html{ scroll-behavior: auto; } }
+
+body{
+  margin:0;
+  background: var(--bg-light);
+  color: var(--text-dark);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+img{ max-width:100%; display:block; }
+a{ color: inherit; text-decoration:none; }
+/* font-weight 800 (not 500): el manual usa un peso Black/ExtraBold para
+   titulares — Fraunces (versión original) tenía su propio carácter editorial
+   a peso 500; Nunito necesita más peso para el mismo protagonismo. */
+h1,h2,h3,h4{ font-family: var(--font-head); font-weight: 800; margin: 0 0 .5em; letter-spacing: -0.01em; }
+p{ margin: 0 0 1em; }
+.container{ width: 100%; max-width: var(--container); margin: 0 auto; padding: 0 28px; }
+
+/* ---------- Buttons ---------- */
+.btn{
+  display: inline-flex; align-items:center; justify-content:center; gap:.5em;
+  padding: 14px 26px; border-radius: 999px; font-family: var(--font-body);
+  font-weight: 600; font-size: 14.5px; letter-spacing: .01em; cursor: pointer;
+  border: 1px solid transparent; transition: transform 160ms var(--ease-out), background-color 160ms var(--ease-out), border-color 160ms var(--ease-out), color 160ms var(--ease-out);
+  white-space: nowrap;
+}
+.btn:active{ transform: scale(.97); }
+.btn-gold{ background: var(--gold); color: #201705; }
+/* color:inherit (not var(--text)) on purpose so this works on both dark and
+   light surfaces — but that means every usage MUST sit inside a container
+   that sets an explicit color, or it silently falls back to body's dark
+   text. Bug caught in QA: the tour panels didn't set color on the <a>
+   itself, so btn-outline inherited body's dark navy over a photo — a dark
+   smudge instead of legible white. Default to var(--text) (its only real
+   usage today is on dark tour/hero panels); override per-instance if a
+   light-surface use is ever added. */
+.btn-outline{ background: transparent; border-color: currentColor; color: var(--text); }
+.btn-dark{ background: var(--primary); color: var(--text); }
+.btn-block{ width:100%; }
+.btn[disabled]{ opacity:.5; cursor: not-allowed; }
+
+/* Hover-only affordances gated behind (hover:hover) — a tap on touch
+   shouldn't leave a button/link stuck in a "hovered" visual state. */
+@media (hover:hover) and (pointer:fine){
+  .btn-gold:hover{ background: var(--gold-soft); }
+  .btn-outline:hover{ background: rgba(255,255,255,0.08); }
+  .btn-dark:hover{ background: var(--primary-alt); }
+
+  .link-underline{ position:relative; }
+  .link-underline::after{
+    content:''; position:absolute; left:0; right:100%; bottom:-3px; height:1px; background:currentColor;
+    transition: right 220ms var(--ease-out);
+  }
+  .link-underline:hover::after{ right:0; }
+}
+
+/* ---------- Site header ---------- */
+.site-header{
+  position: fixed; top:0; left:0; right:0; z-index: 500;
+  height: var(--header-h);
+  display:flex; align-items:center;
+  background: rgba(7,27,51,0.35);
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  transition: background-color 260ms var(--ease-out), border-color 260ms var(--ease-out);
+}
+.site-header.is-light{
+  background: rgba(239,251,251,0.72);
+  border-bottom-color: rgba(12,49,102,0.08);
+}
+.site-header .container{ display:flex; align-items:center; justify-content:space-between; gap: 24px; }
+
+.logo{
+  font-family: var(--font-head); font-size: 20px; font-weight:600; color: var(--text);
+  display:flex; align-items:center; gap:.55em; letter-spacing: -0.01em;
+}
+.site-header.is-light .logo{ color: var(--text-dark); }
+.logo .dot{ width:7px; height:7px; border-radius:50%; background: var(--gold); display:inline-block; }
+.logo-mark{ display:block; flex-shrink:0; }
+
+.main-nav{ display:flex; align-items:center; gap: 30px; }
+.main-nav a{
+  font-size: 13.5px; font-weight: 500; letter-spacing: .02em; text-transform: uppercase;
+  color: var(--text-muted);
+  transition: color 160ms var(--ease-out);
+}
+.site-header.is-light .main-nav a{ color: var(--text-dark-muted); }
+.main-nav a.is-active:not(.btn){ color: var(--gold); }
+.site-header.is-light .main-nav a.is-active:not(.btn){ color: var(--primary); }
+@media (hover:hover) and (pointer:fine){
+  .main-nav a:hover:not(.btn){ color: var(--gold); }
+  .site-header.is-light .main-nav a:hover:not(.btn){ color: var(--primary); }
+}
+
+.nav-toggle{ display:none; background:none; border:none; color: var(--text); cursor:pointer; padding: 8px; }
+.site-header.is-light .nav-toggle{ color: var(--text-dark); }
+
+@media (max-width: 900px){
+  .main-nav{
+    /* NOTE: .site-header has backdrop-filter, which (like transform) makes it
+       the containing block for fixed-position descendants — so `bottom:0`
+       here would resolve against the header's own ~76px box, not the
+       viewport. Use an explicit dvh height instead of bottom:0. */
+    position: fixed; top: var(--header-h); left:0; right:0;
+    height: calc(100dvh - var(--header-h));
+    background: var(--primary); flex-direction: column; justify-content:flex-start;
+    padding: 40px 28px; gap: 22px;
+    transform: translateY(-8px); opacity: 0; pointer-events:none;
+    transition: transform 220ms var(--ease-out), opacity 220ms var(--ease-out);
+  }
+  .main-nav.is-open{ transform: translateY(0); opacity:1; pointer-events:auto; }
+  .main-nav a{ font-size: 16px; color: var(--text); }
+  .main-nav .btn{ margin-top: 10px; }
+  .nav-toggle{ display:block; }
+}
+
+/* ---------- Footer ---------- */
+.site-footer{ background: var(--primary); color: var(--text); padding: 72px 0 28px; }
+.footer-grid{ display:grid; grid-template-columns: 1.4fr 1fr 1fr 1fr; gap: 40px; padding-bottom: 48px; border-bottom: 1px solid var(--line); }
+.footer-grid h4{ color: var(--gold-soft); font-family: var(--font-body); font-size: 13px; text-transform: uppercase; letter-spacing: .08em; font-weight:600; margin-bottom: 18px; }
+.footer-grid p{ color: var(--text-muted); font-size: 14.5px; max-width: 320px; }
+.footer-grid a{ display:block; color: var(--text-muted); font-size: 14.5px; padding: 6px 0; transition: color 160ms var(--ease-out); }
+@media (hover:hover) and (pointer:fine){ .footer-grid a:hover{ color: var(--gold-soft); } }
+.footer-bottom{ display:flex; justify-content:space-between; align-items:center; padding-top: 24px; color: var(--text-muted); font-size: 13px; flex-wrap: wrap; gap: 12px; }
+@media (max-width: 820px){ .footer-grid{ grid-template-columns: 1fr 1fr; } }
+@media (max-width: 560px){ .footer-grid{ grid-template-columns: 1fr; } }
+
+/* ---------- Reveal-on-scroll (used site-wide, gentle) ---------- */
+.reveal{ opacity: 0; transform: translateY(18px); transition: opacity 560ms var(--ease-out), transform 560ms var(--ease-out); }
+.reveal.is-visible{ opacity: 1; transform: translateY(0); }
+@media (prefers-reduced-motion: reduce){
+  .reveal{ opacity:1; transform:none; transition:none; }
+}
+
+/* ---------- Section helpers ---------- */
+.section{ padding: 100px 0; }
+.section-light{ background: var(--bg-light); color: var(--text-dark); }
+.section-dark{ background: var(--primary); color: var(--text); }
+.eyebrow{ display:inline-flex; align-items:center; gap:.5em; font-size: 12.5px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color: var(--gold); margin-bottom: 16px; }
+.eyebrow::before{ content:''; width: 22px; height:1px; background: var(--gold); }
+.section-head{ max-width: 640px; margin-bottom: 56px; }
+.section-head h2{ font-size: clamp(30px, 4vw, 44px); }
+.section-head p{ font-size: 17px; color: var(--text-dark-muted); }
+.section-dark .section-head p{ color: var(--text-muted); }
+
+/* ---------- Gallery / carousel (reused: home + contacto) ---------- */
+/* min-width:0 matters here: on /contacto pages this component sits inside a
+   CSS grid column. Grid/flex items default to min-width:auto, which equals
+   their content's max-content size — for a horizontally-scrolling track that
+   means "wide enough to fit every card unscrolled", blowing out the column
+   instead of letting overflow-x:auto clip/scroll it. min-width:0 lets the
+   item shrink to the track's actual (scrollable) size. */
+.gallery{ position: relative; min-width: 0; }
+.gallery-track{
+  display:flex; gap: 18px; overflow-x: auto; scroll-snap-type: x mandatory;
+  padding-bottom: 8px; scrollbar-width: none; -ms-overflow-style: none;
+  cursor: grab; user-select: none;
+}
+.gallery-track::-webkit-scrollbar{ display:none; }
+.gallery-track.is-dragging{ cursor: grabbing; scroll-snap-type: none; }
+.gallery-card{
+  position: relative; flex: 0 0 auto; width: 320px; aspect-ratio: 4/5;
+  border-radius: 14px; overflow: hidden; scroll-snap-align: start;
+  box-shadow: 0 18px 40px -18px rgba(0,0,0,0.35);
+}
+.gallery-card img{ width:100%; height:100%; object-fit: cover; }
+.gallery-tag{
+  position:absolute; top:14px; left:14px; padding: 5px 12px; border-radius: 999px;
+  background: rgba(7,27,51,0.55); backdrop-filter: blur(6px);
+  color: var(--text); font-size: 11.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase;
+}
+.gallery-caption{
+  position:absolute; left:0; right:0; bottom:0; padding: 16px;
+  background: linear-gradient(0deg, rgba(7,27,51,0.85), rgba(7,27,51,0));
+  color: var(--text); font-size: 13.5px; font-weight:600;
+}
+.gallery-controls{ display:flex; align-items:center; justify-content: space-between; margin-top: 22px; }
+.gallery-arrows{ display:flex; gap: 10px; }
+.gallery-arrow{
+  width: 44px; height:44px; border-radius:50%; border: 1px solid var(--line-dark);
+  display:flex; align-items:center; justify-content:center; cursor:pointer; background: transparent;
+  transition: background-color 160ms var(--ease-out), transform 160ms var(--ease-out), border-color 160ms var(--ease-out);
+  color: inherit;
+}
+.section-dark .gallery-arrow{ border-color: var(--line); }
+@media (hover:hover) and (pointer:fine){
+  .gallery-arrow:hover{ background: rgba(12,49,102,0.06); }
+  .section-dark .gallery-arrow:hover{ background: rgba(255,255,255,0.08); }
+}
+.gallery-arrow:active{ transform: scale(.92); }
+.gallery-dots{ display:flex; gap:7px; }
+.gallery-dot{ width:6px; height:6px; border-radius:50%; background: var(--line-dark); transition: background-color 200ms var(--ease-out), width 200ms var(--ease-out); }
+.section-dark .gallery-dot{ background: var(--line); }
+.gallery-dot.is-active{ width: 20px; background: var(--gold); }
+.gallery-note{ font-size: 12.5px; color: var(--text-dark-muted); margin-top: 14px; }
+.section-dark .gallery-note{ color: var(--text-muted); }
+
+/* ---------- Forms (contacto) ---------- */
+.form-card{ background: var(--bg-light); border-radius: 20px; padding: 40px; box-shadow: 0 30px 70px -30px rgba(12,49,102,0.25); border: 1px solid rgba(12,49,102,0.06); }
+.form-grid{ display:grid; grid-template-columns: 1fr 1fr; gap: 18px 20px; }
+.field{ display:flex; flex-direction:column; gap: 7px; margin-bottom: 4px; }
+.field.full{ grid-column: 1 / -1; }
+.field label{ font-size: 12.5px; font-weight:600; letter-spacing:.03em; text-transform:uppercase; color: var(--text-dark-muted); }
+.field input, .field select, .field textarea{
+  font-family: var(--font-body); font-size: 15px; padding: 13px 15px; border-radius: 10px;
+  border: 1px solid rgba(12,49,102,0.16); background: #fff; color: var(--text-dark);
+  transition: border-color 160ms var(--ease-out), box-shadow 160ms var(--ease-out);
+}
+.field textarea{ resize: vertical; min-height: 96px; font-family: var(--font-body); }
+.field input:focus, .field select:focus, .field textarea:focus{
+  outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px rgba(255,99,57,0.18);
+}
+.field .error-msg{ font-size: 12.5px; color: var(--danger); min-height: 15px; }
+.field.has-error input, .field.has-error select, .field.has-error textarea{ border-color: var(--danger); }
+.form-submit-row{ display:flex; align-items:center; justify-content: space-between; margin-top: 22px; flex-wrap: wrap; gap: 14px; }
+.form-note{ font-size: 12.5px; color: var(--text-dark-muted); max-width: 320px; }
+.form-success{
+  display:none; align-items:center; gap: 12px; background: rgba(12,49,102,0.06); border: 1px solid rgba(12,49,102,0.14);
+  color: var(--primary); padding: 16px 18px; border-radius: 12px; font-size: 14.5px; font-weight:600; margin-top: 18px;
+}
+.form-success.is-visible{ display:flex; }
+@media (max-width: 640px){ .form-grid{ grid-template-columns: 1fr; } .form-card{ padding: 26px; } }
+
+/* ---------- Utility ---------- */
+.spacer-header{ height: var(--header-h); }
+.text-center{ text-align:center; }
+.mt-0{ margin-top:0; }

@@ -1,0 +1,87 @@
+/* ============================================================
+   Home Pro Guides — wizard.css
+   Formulario tipo stepper: una pregunta por pantalla. Vive DENTRO
+   del mismo .form-card que ya existía — no se toca la posición ni
+   el tamaño de ese contenedor en la página de Contacto, solo su
+   contenido interno.
+   ============================================================ */
+
+.wizard{ display:flex; flex-direction:column; min-height: 460px; }
+
+/* progreso implícito: una barra fina, sin "paso 3 de 8" */
+.wizard-progress{ height:3px; background: rgba(12,49,102,0.08); border-radius:999px; overflow:hidden; margin-bottom: 28px; flex-shrink:0; }
+.wizard-progress-bar{ height:100%; background: var(--gold); width:0%; transition: width 320ms var(--ease-out); }
+
+.wizard-body{ flex:1; display:flex; flex-direction:column; }
+
+.wizard-step{ display:flex; flex-direction:column; flex:1; }
+.wizard-step-head{ margin-bottom: 22px; }
+.wizard-step-head h3{ font-family: var(--font-head); font-size: 24px; margin:0 0 6px; color: var(--text-dark); line-height:1.2; }
+.wizard-step-head p{ font-size: 14.5px; color: var(--text-dark-muted); margin:0; }
+
+/* ---- option cards (single + multi select) ---- */
+.wizard-options{ display:grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.wizard-options.is-narrow{ grid-template-columns: 1fr; }
+.wizard-option{
+  position:relative; display:flex; flex-direction:column; align-items:flex-start; gap: 12px;
+  text-align:left; padding: 18px 16px; border-radius: 14px; border: 1.5px solid rgba(12,49,102,0.12);
+  background:#fff; cursor:pointer; font-family: var(--font-body);
+  transition: border-color 160ms var(--ease-out), background-color 160ms var(--ease-out), transform 120ms var(--ease-out);
+}
+.wizard-option:active{ transform: scale(.98); }
+@media (hover:hover) and (pointer:fine){
+  .wizard-option:hover{ border-color: var(--gold); background: rgba(255,99,57,0.06); }
+}
+.wizard-option.is-selected{ border-color: var(--gold); background: rgba(255,99,57,0.1); }
+.wizard-option-icon{
+  width: 38px; height:38px; border-radius: 10px; background: rgba(12,49,102,0.06);
+  display:flex; align-items:center; justify-content:center; color: var(--primary);
+  flex-shrink:0; transition: background-color 160ms var(--ease-out), color 160ms var(--ease-out);
+}
+.wizard-option.is-selected .wizard-option-icon{ background: var(--gold); color:#201705; }
+.wizard-option-label{ font-size: 14.5px; font-weight:600; color: var(--text-dark); line-height:1.3; }
+.wizard-option-check{
+  position:absolute; top:14px; right:14px; width:20px; height:20px; border-radius:50%;
+  border: 1.5px solid rgba(12,49,102,0.22); background:#fff;
+  display:flex; align-items:center; justify-content:center; color:#fff;
+  transition: background-color 160ms var(--ease-out), border-color 160ms var(--ease-out);
+}
+.wizard-option.is-selected .wizard-option-check{ background: var(--gold); border-color: var(--gold); }
+.wizard-option-check svg{ opacity:0; transition: opacity 120ms var(--ease-out); }
+.wizard-option.is-selected .wizard-option-check svg{ opacity:1; }
+
+/* ---- text-field steps ---- */
+.wizard-fields{ display:grid; grid-template-columns: 1fr 1fr; gap: 16px 18px; }
+.wizard-fields .field.full{ grid-column: 1 / -1; }
+@media (max-width: 520px){ .wizard-fields{ grid-template-columns: 1fr; } }
+
+/* ---- fixed nav row ---- */
+.wizard-nav{ display:flex; align-items:center; justify-content:space-between; margin-top: 24px; flex-shrink:0; gap: 12px; }
+.wizard-back{
+  display:inline-flex; align-items:center; gap:6px; background:none; border:none; cursor:pointer;
+  font-size: 13.5px; font-weight:600; color: var(--text-dark-muted); padding: 10px 4px;
+  transition: color 160ms var(--ease-out);
+}
+@media (hover:hover) and (pointer:fine){ .wizard-back:hover{ color: var(--text-dark); } }
+.wizard-back[hidden]{ display:none; }
+.wizard-next{ margin-left:auto; }
+.wizard-hint{ font-size:12.5px; color: var(--text-dark-muted); text-align:center; margin-top:14px; }
+
+.wizard-success{
+  display:flex; flex-direction:column; align-items:flex-start; gap:14px; flex:1; justify-content:center;
+}
+.wizard-success svg{ color: var(--gold); }
+.wizard-success h3{ font-family: var(--font-head); font-size: 24px; margin:0; color: var(--text-dark); }
+.wizard-success p{ font-size: 14.5px; color: var(--text-dark-muted); margin:0; max-width: 400px; }
+
+/* step transition: gentle fade+slide, matches the .reveal treatment used
+   site-wide — occasional tier (a "modal-like" step change), not rare/first-time,
+   so it stays subtle and short. */
+.wizard-step{ animation: wizardStepIn 260ms var(--ease-out); }
+@keyframes wizardStepIn{ from{ opacity:0; transform: translateY(8px);} to{ opacity:1; transform:translateY(0);} }
+@media (prefers-reduced-motion: reduce){ .wizard-step{ animation: none; } }
+
+@media (max-width: 560px){
+  .wizard-options{ grid-template-columns: 1fr 1fr; }
+  .wizard-option{ padding: 14px 12px; }
+}

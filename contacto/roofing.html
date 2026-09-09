@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="../assets/favicon-32.png">
+<link rel="apple-touch-icon" href="../assets/apple-touch-icon.png">
+<title>Cotiza tu techo — Home Pro Guides</title>
+<meta name="description" content="Cotización gratis para reemplazo o reparación de techo en Florida y California. Materiales de grado comercial y garantía real.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="../css/main.css">
+<link rel="stylesheet" href="../css/wizard.css">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="container">
+    <a href="../index.html" class="logo"><img src="../assets/images/logo-mark.png" alt="" class="logo-mark" width="26" height="26">Home Pro Guides</a>
+    <nav class="main-nav">
+      <a href="../index.html">Inicio</a>
+      <a href="../index.html#recorrido">El recorrido</a>
+      <a href="../index.html#galeria">Galería</a>
+      <a href="../blog/index.html">Blog</a>
+      <a href="./index.html" class="btn btn-gold is-active">Cotización gratis</a>
+    </nav>
+    <button class="nav-toggle" aria-label="Abrir menú" aria-expanded="false">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+    </button>
+  </div>
+</header>
+
+<main>
+  <section class="section-dark" style="padding: calc(var(--header-h) + 64px) 0 60px;">
+    <div class="container">
+      <span class="eyebrow">Techos</span>
+      <h1 style="font-size:clamp(32px,4.6vw,52px); max-width:680px; color:var(--text); margin-bottom:14px;">Un techo nuevo antes de que la próxima tormenta decida por ti.</h1>
+      <p style="max-width:560px; color:var(--text-muted); font-size:17px;">Cuéntanos el estado de tu techo actual y te armamos una cotización real — no un estimado genérico por teléfono.</p>
+    </div>
+  </section>
+
+  <section class="section section-light">
+    <div class="container">
+      <div style="display:grid; grid-template-columns: 1.1fr 0.9fr; gap:48px; align-items:start;" id="contact-layout">
+
+        <div class="reveal">
+          <div class="form-card">
+            <div class="wizard" data-component="wizard">
+              <div class="wizard-progress"><div class="wizard-progress-bar"></div></div>
+              <div class="wizard-body"></div>
+              <script type="application/json" data-wizard-steps>{"steps": [{"id": "scope", "type": "single", "title": "¿Cuál es el alcance de tu proyecto?", "subtitle": "Así sabemos por dónde empezar.", "options": [{"value": "repair", "label": "Reparación puntual", "icon": "wrench"}, {"value": "replace", "label": "Reemplazo completo", "icon": "swap"}, {"value": "remodel", "label": "Remodelación completa", "icon": "hammer"}, {"value": "unsure", "label": "Aún no sé, quiero orientación", "icon": "help"}]}, {"id": "roof_material", "type": "single", "title": "¿Cuál es el material actual de tu techo?", "subtitle": null, "options": [{"value": "asphalt", "label": "Tejas de asfalto", "icon": "roof"}, {"value": "tile", "label": "Tejas de barro o concreto", "icon": "roof"}, {"value": "flat", "label": "Techo plano o membrana", "icon": "layers"}, {"value": "unsure", "label": "No estoy seguro", "icon": "help"}]}, {"id": "storm_damage", "type": "single", "title": "¿Tuviste daños recientes por clima?", "subtitle": null, "options": [{"value": "yes", "label": "Sí, hay goteras o tejas sueltas", "icon": "cloudRain"}, {"value": "maybe", "label": "No estoy seguro, quiero inspección", "icon": "search"}, {"value": "no", "label": "No, es mantenimiento preventivo", "icon": "shieldCheck"}, {"value": "notsure", "label": "Prefiero que lo evalúen ustedes", "icon": "help"}]}, {"id": "timeline", "type": "single", "title": "¿Cuándo quieres empezar?", "subtitle": null, "options": [{"value": "asap", "label": "Lo antes posible", "icon": "zap"}, {"value": "1-3", "label": "En 1–3 meses", "icon": "calendar"}, {"value": "3-6", "label": "En 3–6 meses", "icon": "calendar"}, {"value": "quote-only", "label": "Solo estoy cotizando", "icon": "search"}]}, {"id": "budget", "type": "single", "title": "¿Cuál es tu presupuesto estimado?", "subtitle": "Nos ayuda a proponerte opciones realistas.", "options": [{"value": "lt10", "label": "Menos de $10,000", "icon": "dollar"}, {"value": "10-25", "label": "$10,000 – $25,000", "icon": "dollar"}, {"value": "25-50", "label": "$25,000 – $50,000", "icon": "dollar"}, {"value": "50plus", "label": "Más de $50,000", "icon": "dollar"}]}, {"id": "priorities", "type": "multi", "title": "¿Qué te importa más en este proyecto?", "subtitle": "Puedes elegir varias.", "options": [{"value": "price", "label": "Precio", "icon": "tag"}, {"value": "speed", "label": "Rapidez", "icon": "zap"}, {"value": "quality", "label": "Calidad de materiales", "icon": "star"}, {"value": "warranty", "label": "Garantía", "icon": "shieldCheck"}, {"value": "design", "label": "Diseño", "icon": "palette"}, {"value": "communication", "label": "Comunicación clara", "icon": "message"}]}, {"id": "contact1", "type": "text", "title": "¿Cómo te contactamos?", "subtitle": "Un asesor real revisa cada solicitud.", "fields": [{"name": "name", "label": "Nombre completo", "type": "text", "required": true, "placeholder": "Ej. María Rodríguez"}, {"name": "phone", "label": "Teléfono", "type": "tel", "required": true, "placeholder": "(305) 555-0134"}]}, {"id": "contact2", "type": "text", "title": "¿Dónde está la propiedad?", "subtitle": null, "fields": [{"name": "email", "label": "Correo electrónico", "type": "email", "required": true, "placeholder": "tucorreo@email.com"}, {"name": "zip", "label": "Código postal", "type": "text", "required": true, "placeholder": "33101"}, {"name": "address", "label": "Dirección (opcional)", "type": "text", "required": false, "placeholder": "Calle y número", "full": true}]}, {"id": "comments", "type": "textarea", "isLast": true, "title": "¿Algo más que debamos saber?", "subtitle": "Opcional — pero ayuda a cotizar mejor.", "fields": [{"name": "comments", "label": "Comentarios", "type": "textarea", "required": false, "full": true, "placeholder": "Cuéntanos cualquier detalle que nos ayude a cotizar mejor…"}]}]}</script>
+            </div>
+          </div>
+        </div>
+
+        <div class="reveal">
+          <h3 style="font-size:20px; margin-bottom:6px;">Échale un ojo a nuestro trabajo</h3>
+          <p style="color:var(--text-dark-muted); font-size:14.5px; margin-bottom:22px;">Proyectos de techos — y algunos otros mientras cotizas.</p>
+          <div class="gallery" data-component="gallery" data-autoplay="4600">
+            <div class="gallery-track" tabindex="0" aria-label="Galería de trabajos terminados">
+              <div class="gallery-card"><span class="gallery-tag">Techos · Después</span><img src="../assets/images/gallery-roof-after.jpg" alt="Techo nuevo instalado" loading="lazy"><span class="gallery-caption">Techo nuevo — instalación certificada</span></div>
+              <div class="gallery-card"><span class="gallery-tag">Techos · Antes</span><img src="../assets/images/gallery-roof-before.jpg" alt="Techo antes de la remodelación" loading="lazy"><span class="gallery-caption">Techo original — desgaste por sol y lluvia</span></div>
+              <div class="gallery-card"><span class="gallery-tag">Ventanas · Después</span><img src="../assets/images/gallery-windows-after.jpg" alt="Ventanas nuevas instaladas" loading="lazy"><span class="gallery-caption">Ventanas nuevas — impacto certificado</span></div>
+              <div class="gallery-card"><span class="gallery-tag">Cocina · Después</span><img src="../assets/images/gallery-kitchen-after.jpg" alt="Cocina remodelada" loading="lazy"><span class="gallery-caption">Cocina nueva — isla de cuarzo</span></div>
+              <div class="gallery-card"><span class="gallery-tag">Baño · Después</span><img src="../assets/images/gallery-bathroom-after.jpg" alt="Baño remodelado" loading="lazy"><span class="gallery-caption">Baño nuevo — estilo spa</span></div>
+              <div class="gallery-card"><span class="gallery-tag">Ventanas · Antes</span><img src="../assets/images/gallery-windows-before.jpg" alt="Ventanas antiguas" loading="lazy"><span class="gallery-caption">Ventanas originales — marcos opacos</span></div>
+            </div>
+            <div class="gallery-controls">
+              <div class="gallery-dots"></div>
+              <div class="gallery-arrows">
+                <button type="button" class="gallery-arrow" data-gallery-prev aria-label="Foto anterior"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></button>
+                <button type="button" class="gallery-arrow" data-gallery-next aria-label="Foto siguiente"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></button>
+              </div>
+            </div>
+          </div>
+          <p class="gallery-note">* Fotos referenciales generadas para esta propuesta.</p>
+        </div>
+
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div>
+        <div class="logo" style="margin-bottom:14px;"><img src="../assets/images/logo-mark.png" alt="" class="logo-mark" width="24" height="24">Home Pro Guides</div>
+        <p>Remodelación premium de techos, ventanas, cocinas y baños en Florida y California. Un equipo, de principio a fin.</p>
+      </div>
+      <div>
+        <h4>Servicios</h4>
+        <a href="./roofing.html">Techos</a>
+        <a href="./windows.html">Ventanas</a>
+        <a href="./kitchen.html">Cocina</a>
+        <a href="./bathroom.html">Baños</a>
+      </div>
+      <div>
+        <h4>Compañía</h4>
+        <a href="../index.html#galeria">Galería</a>
+        <a href="../blog/index.html">Blog</a>
+        <a href="./index.html">Contacto</a>
+      </div>
+      <div>
+        <h4>Contacto</h4>
+        <a href="tel:+18005551234">(800) 555-1234</a>
+        <a href="mailto:hola@homeproguides.com">hola@homeproguides.com</a>
+        <a href="#">Florida &amp; California</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© 2026 Home Pro Guides. Todos los derechos reservados.</span>
+      <span>Propuesta de sitio — prototipo sin backend.</span>
+    </div>
+  </div>
+</footer>
+
+<style>
+/* min-width:0 matters here: this grid column holds a horizontally-scrolling
+   gallery track — without it, grid items default to min-width:auto (their
+   content's max-content size), which blows the column out past the
+   viewport instead of letting overflow-x:auto clip/scroll it. Same fix as
+   the general contact page, see css/main.css .gallery rule. */
+#contact-layout > *{ min-width: 0; }
+@media (max-width: 900px){ #contact-layout{ grid-template-columns: 1fr !important; } }
+</style>
+
+<script src="../js/site.js"></script>
+<script src="../js/gallery.js"></script>
+<script src="../js/wizard.js"></script>
+</body>
+</html>

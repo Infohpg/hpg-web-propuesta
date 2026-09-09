@@ -1,0 +1,146 @@
+/* ============================================================
+   Home Pro Guides — Recorrido por la casa (VIDEO snap-scroll)
+   v4 — reemplaza el sistema de fotos con crossfade / la escena 3D
+   exploratoria. Ahora es UN video real (Luma AI, aprobado por Luis)
+   con 6 paradas fijas (timestamps). El scroll NO se mapea 1:1 al
+   video: un poco de scroll/swipe dispara un salto RÁPIDO (scrub
+   animado, ~450-900ms según distancia) hacia el siguiente punto,
+   donde el video se congela hasta el próximo input. Ver js/scroll-tour.js.
+
+   Estructura:
+     .tour-pin              → contenedor 100vh, primer elemento de <main>
+       video.tour-video      → el recorrido real
+       .tour-video-frame     → wrapper con Ken Burns idle sutil (SIEMPRE
+                                corriendo, independiente del snap-scroll,
+                                para que el cuadro congelado nunca se
+                                sienta 100% muerto)
+       .tour-scrim            → degradado para legibilidad del texto
+       .tour-topbar/.tour-pillnav → nav de las 6 paradas (reusado)
+       .tour-content/.tour-panel  → copy por parada (reusado, 1 visible)
+   ============================================================ */
+
+.tour{ position: relative; background: var(--bg); }
+.tour-pin{ position: relative; height: 100vh; min-height: 560px; overflow: hidden; }
+
+.tour-video-frame{
+  position:absolute; inset:0; overflow:hidden;
+  animation: tourIdleBreath 16s ease-in-out infinite alternate;
+  /* --wm-scale/--wm-ty: recorte + paneo por parada para tapar el
+     watermark de Luma AI (su posición cambia de toma a toma) — ver
+     WM_HIDE en js/scroll-tour.js, que setea estas variables al
+     cambiar de índice. Nunca deja huecos: cover ya llena el marco,
+     esto solo agrega zoom/paneo extra. */
+  --wm-scale: 1.14; --wm-ty: 0%;
+}
+.tour-video{
+  position:absolute; inset:0; width:100%; height:100%;
+  object-fit: cover; object-position: center 42%;
+  background: var(--bg);
+}
+@keyframes tourIdleBreath{
+  0%   { transform: scale(var(--wm-scale, 1.14)) translate3d(0, var(--wm-ty, 0%), 0); }
+  100% { transform: scale(calc(var(--wm-scale, 1.14) + 0.03)) translate3d(0, var(--wm-ty, 0%), 0); }
+}
+
+.tour-scrim{
+  position:absolute; inset:0; pointer-events:none;
+  background: linear-gradient(180deg, rgba(7,27,51,.62) 0%, rgba(7,27,51,.08) 26%, rgba(7,27,51,.14) 56%, rgba(7,27,51,.9) 100%);
+}
+
+/* Ocultos por defecto: solo existen para el fallback reduced-motion. */
+.tour-hero-static{ display:none; }
+.tour-stack-photo{ display:none; }
+
+.tour-content{ position:absolute; inset:0; pointer-events:none; z-index:3; }
+.tour-panel{
+  position:absolute; left:0; right:0; bottom:0;
+  padding: 0 28px 108px; opacity:0; transform: translate3d(0,18px,0);
+  transition: opacity 420ms var(--ease-out), transform 420ms var(--ease-out);
+  pointer-events:none;
+}
+.tour-panel.is-focused{ opacity:1; transform: translate3d(0,0,0); pointer-events:auto; }
+.tour-panel-inner{ max-width: var(--container); margin: 0 auto; }
+.tour-eyebrow{
+  display:inline-flex; align-items:center; gap:.6em; color: var(--gold-soft);
+  font-size:12.5px; font-weight:700; letter-spacing:.14em; text-transform:uppercase; margin-bottom:14px;
+}
+.tour-eyebrow::before{ content:''; width:22px; height:1px; background: var(--gold-soft); }
+.tour-panel h2{
+  color: var(--text); font-size: clamp(30px, 5vw, 58px); max-width: 780px; margin: 0 0 14px;
+  line-height: 1.08;
+  text-shadow: 0 2px 24px rgba(7,27,51,0.45);
+}
+.tour-panel p{ color: var(--text-muted); font-size: 16.5px; max-width: 480px; margin-bottom: 22px; text-shadow: 0 1px 12px rgba(7,27,51,0.4); }
+.tour-panel .btn{ pointer-events:auto; }
+
+.tour-topbar{
+  position:absolute; top: calc(var(--header-h) + 18px); left:0; right:0; z-index: 5;
+  display:flex; justify-content:center; padding: 0 20px; pointer-events:none;
+}
+.tour-pillnav{
+  pointer-events:auto; display:flex; gap: 4px; padding: 6px; border-radius: 999px;
+  background: rgba(11,15,13,0.45); backdrop-filter: blur(12px);
+  border: 1px solid rgba(245,241,232,0.12);
+}
+.tour-pillnav button{
+  border:none; background:transparent; color: var(--text-muted); cursor:pointer;
+  font-size: 12.5px; font-weight:600; letter-spacing:.03em; padding: 9px 16px; border-radius: 999px;
+  transition: background-color 200ms var(--ease-out), color 200ms var(--ease-out);
+  white-space: nowrap;
+}
+.tour-pillnav button.is-active{ background: var(--gold); color:#201705; }
+@media (hover:hover) and (pointer:fine){
+  .tour-pillnav button:hover:not(.is-active){ color: var(--text); }
+}
+
+.tour-progress{ position:absolute; left:0; right:0; bottom:0; height:2px; background: rgba(245,241,232,0.14); z-index:5; }
+.tour-progress-bar{ height:100%; width:0%; background: var(--gold); transform-origin:left; transition: width 520ms var(--ease-out); }
+
+.tour-scroll-hint{
+  position:absolute; left: 28px; bottom: 34px; z-index:5;
+  background:none; border:none; color: var(--text-muted); font-size:12px; letter-spacing:.06em;
+  text-transform:uppercase; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:8px;
+  opacity: 1; transition: opacity 300ms var(--ease-out);
+}
+.tour-scroll-hint .chevron{ display:inline-block; animation: tourBob 1.6s var(--ease-in-out) infinite; }
+.tour.is-mid-tour .tour-scroll-hint{ opacity: 0; pointer-events:none; }
+@keyframes tourBob{ 0%,100%{ transform: translateY(0);} 50%{ transform: translateY(5px);} }
+
+@media (max-width: 720px){
+  .tour-pillnav{ overflow-x:auto; max-width: 100%; -ms-overflow-style:none; scrollbar-width:none; }
+  .tour-pillnav::-webkit-scrollbar{ display:none; }
+  .tour-panel{ padding-bottom: 84px; }
+  .tour-panel p{ font-size: 15.5px; }
+}
+
+@media (prefers-reduced-motion: reduce){
+  .tour-video-frame{ animation: none !important; }
+}
+
+/* ---------------- Reduced motion: sin scroll-jacking ni video ----------------
+   El motor JS nunca arranca el snap-scroll ni reproduce el video: en su lugar
+   muestra un hero estático (poster) con la primera parada, y apila las 6
+   paradas como bloques normales debajo — cada uno con su propia foto fija
+   (frame extraído del video) para no perder la referencia visual del
+   recorrido, sin ningún movimiento. */
+.tour.is-reduced-motion .tour-pin{ height:auto; min-height:0; overflow:visible; }
+.tour.is-reduced-motion .tour-video-frame{ display:none; }
+.tour.is-reduced-motion .tour-hero-static{
+  position:relative; height: 78vh; min-height:480px; background-size:cover; background-position:center 42%;
+}
+.tour.is-reduced-motion .tour-scrim{ position:absolute; inset:0; }
+.tour.is-reduced-motion .tour-content{ position:static; }
+.tour.is-reduced-motion .tour-panel{
+  position:static; opacity:1 !important; transform:none !important; pointer-events:auto;
+  padding: 56px 28px; background: var(--primary); border-bottom: 1px solid rgba(255,255,255,.08);
+}
+.tour.is-reduced-motion .tour-panel[data-stop="0"]{
+  position:absolute; inset:0; display:flex; align-items:flex-end; background:none; border:none;
+}
+.tour.is-reduced-motion .tour-topbar{ position: static; margin: 18px 0; }
+.tour.is-reduced-motion .tour-progress, .tour.is-reduced-motion .tour-scroll-hint{ display: none; }
+.tour.is-reduced-motion .tour-stack-photo{
+  display:block; height: 44vh; min-height: 260px; background-size: cover; background-position: center 42%;
+  margin: -56px -28px 24px;
+}
+.tour.is-reduced-motion .tour-hero-static{ display:block; }

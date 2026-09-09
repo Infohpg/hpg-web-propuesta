@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/svg+xml" href="./assets/favicon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="./assets/favicon-32.png">
+<link rel="apple-touch-icon" href="./assets/apple-touch-icon.png">
+<title>Home Pro Guides — Remodelación premium de techos, ventanas, cocinas y baños en FL &amp; CA</title>
+<meta name="description" content="Techos, ventanas, cocinas y baños con acabados de alta calidad en Florida y California. Un solo equipo, de principio a fin. Cotización gratis en 24h.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="./css/main.css">
+<link rel="stylesheet" href="./css/scroll-tour.css">
+</head>
+<body id="top">
+
+<header class="site-header">
+  <div class="container">
+    <a href="./index.html" class="logo"><img src="./assets/images/logo-mark.png" alt="" class="logo-mark" width="26" height="26">Home Pro Guides</a>
+    <nav class="main-nav">
+      <a href="#top" class="is-active">Inicio</a>
+      <a href="#recorrido">El recorrido</a>
+      <a href="#galeria">Galería</a>
+      <a href="./blog/index.html">Blog</a>
+      <a href="./contacto/index.html" class="btn btn-gold">Cotización gratis</a>
+    </nav>
+    <button class="nav-toggle" aria-label="Abrir menú" aria-expanded="false">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+    </button>
+  </div>
+</header>
+
+<main>
+
+  <!-- ============ EL RECORRIDO — video snap-scroll (6 paradas) ============
+       Video real (Luma AI, aprobado por Luis). El scroll NO se mapea 1:1:
+       un poco de scroll/swipe dispara un salto animado (scrub) al siguiente
+       timestamp fijo, donde el video se congela. Ver js/scroll-tour.js.
+       Fallback prefers-reduced-motion: bloques estáticos apilados abajo
+       (mismo HTML, otro CSS — sin JS de scroll-jacking). -->
+  <section class="tour" id="recorrido" data-component="video-tour" aria-label="Recorrido por la casa">
+    <div class="tour-pin">
+
+      <div class="tour-video-frame">
+        <video class="tour-video" muted playsinline preload="auto" poster="./assets/images/tour-poster.jpg" aria-hidden="true">
+          <source src="./assets/video/house-tour.mp4" type="video/mp4">
+        </video>
+      </div>
+      <!-- Solo visible en reduced-motion: hero estático de la parada 0 -->
+      <div class="tour-hero-static" style="background-image:url('./assets/images/tour-stop-llegada.jpg');"></div>
+      <div class="tour-scrim"></div>
+
+      <div class="tour-topbar">
+        <nav class="tour-pillnav" aria-label="Zonas de la casa">
+          <button type="button" class="is-active">Llegada</button>
+          <button type="button">Techo</button>
+          <button type="button">Ventanas</button>
+          <button type="button">Cocina</button>
+          <button type="button">Sala</button>
+          <button type="button">Baño</button>
+        </nav>
+      </div>
+
+      <div class="tour-content">
+        <div class="tour-panel is-focused" data-stop="0">
+          <div class="tour-panel-inner">
+            <span class="tour-eyebrow">Home Pro Guides · Techos, ventanas, cocinas y baños en FL &amp; CA</span>
+            <h2>La primera impresión de tu casa ya está decidiendo su precio de reventa.</h2>
+            <p>Un tasador, un comprador o un vecino deciden en los primeros 8 segundos si tu casa se ve cuidada. Este es el recorrido real de una remodelación completa — sigue bajando.</p>
+            <a href="./contacto/index.html" class="btn btn-gold">Diagnostica tu casa gratis</a>
+          </div>
+        </div>
+
+        <div class="tour-panel" data-stop="1">
+          <div class="tour-stack-photo" style="background-image:url('./assets/images/tour-stop-techo.jpg');"></div>
+          <div class="tour-panel-inner">
+            <h2>Un techo de 15 años no aguanta la próxima inspección del seguro — ni el próximo huracán.</h2>
+            <p>Materiales con clasificación de viento, instalación certificada y garantía por escrito. Muchas aseguradoras en Florida ya piden techo nuevo para renovar la póliza — no esperes a que te lo exijan.</p>
+            <a href="./contacto/roofing.html" class="btn btn-outline">Inspecciona tu techo</a>
+          </div>
+        </div>
+
+        <div class="tour-panel" data-stop="2">
+          <div class="tour-stack-photo" style="background-image:url('./assets/images/tour-stop-ventanas.jpg');"></div>
+          <div class="tour-panel-inner">
+            <h2>Cada verano que esperas, tu factura de luz paga el precio de esas ventanas viejas.</h2>
+            <p>Vidrio de impacto certificado que aísla el calor de Florida y California, baja el ruido de la calle y protege del sol tus muebles — se siente en el aire acondicionado cada mes.</p>
+            <a href="./contacto/windows.html" class="btn btn-outline">Reduce tu factura de luz</a>
+          </div>
+        </div>
+
+        <div class="tour-panel" data-stop="3">
+          <div class="tour-stack-photo" style="background-image:url('./assets/images/tour-stop-cocina.jpg');"></div>
+          <div class="tour-panel-inner">
+            <h2>La cocina es lo primero que un comprador recuerda — y lo primero que sube el precio de venta.</h2>
+            <p>Diseño a tu medida, materiales premium y un cronograma que sí se cumple. La remodelación con mejor retorno cuando llega el momento de vender.</p>
+            <a href="./contacto/kitchen.html" class="btn btn-outline">Diseña tu cocina</a>
+          </div>
+        </div>
+
+        <div class="tour-panel" data-stop="4">
+          <div class="tour-stack-photo" style="background-image:url('./assets/images/tour-stop-sala.jpg');"></div>
+          <div class="tour-panel-inner">
+            <h2>Coordinar tres contratistas distintos no debería ser tu segundo trabajo.</h2>
+            <p>De la cocina a cada rincón de la casa, un solo equipo responde por el proyecto completo — un cronograma, un punto de contacto, cero excusas cruzadas entre contratistas.</p>
+            <a href="./contacto/index.html" class="btn btn-outline">Agenda tu evaluación</a>
+          </div>
+        </div>
+
+        <div class="tour-panel" data-stop="5">
+          <div class="tour-stack-photo" style="background-image:url('./assets/images/tour-stop-bano.jpg');"></div>
+          <div class="tour-panel-inner">
+            <h2>Un baño desactualizado no es solo estética — es el moho y las grietas que nadie quiere mencionar.</h2>
+            <p>De la demolición al último detalle, con acabados tipo spa y garantía real. El espacio que usas todos los días, remodelado como si también lo fueras a vender.</p>
+            <a href="./contacto/bathroom.html" class="btn btn-outline">Renueva tu baño</a>
+          </div>
+        </div>
+      </div>
+
+      <button type="button" class="tour-scroll-hint">
+        <span class="chevron">↓</span> Scroll para recorrer la casa
+      </button>
+      <div class="tour-progress"><div class="tour-progress-bar"></div></div>
+    </div>
+  </section>
+
+  <!-- ============ TRUST STRIP ============ -->
+  <section class="section-dark" style="padding:56px 0;">
+    <div class="container" style="display:flex; flex-wrap:wrap; gap:32px; justify-content:space-between;" data-stagger>
+      <div class="reveal" style="min-width:180px;">
+        <h3 style="color:var(--gold-soft); font-size:30px; margin-bottom:4px;">15+ años</h3>
+        <p style="color:var(--text-muted); font-size:14px; margin:0;">remodelando casas en FL y CA</p>
+      </div>
+      <div class="reveal" style="min-width:180px;">
+        <h3 style="color:var(--gold-soft); font-size:30px; margin-bottom:4px;">Licencia &amp; seguro</h3>
+        <p style="color:var(--text-muted); font-size:14px; margin:0;">al día en cada estado donde operamos</p>
+      </div>
+      <div class="reveal" style="min-width:180px;">
+        <h3 style="color:var(--gold-soft); font-size:30px; margin-bottom:4px;">Garantía real</h3>
+        <p style="color:var(--text-muted); font-size:14px; margin:0;">por escrito, sin letra chica</p>
+      </div>
+      <div class="reveal" style="min-width:180px;">
+        <h3 style="color:var(--gold-soft); font-size:30px; margin-bottom:4px;">Un solo equipo</h3>
+        <p style="color:var(--text-muted); font-size:14px; margin:0;">techo, ventanas, cocina y baño</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ GALERÍA — reusable component ============ -->
+  <section class="section section-light" id="galeria">
+    <div class="container">
+      <div class="section-head reveal">
+        <span class="eyebrow">Antes &amp; después</span>
+        <h2>Échale un ojo a nuestro trabajo</h2>
+        <p>Una muestra de remodelaciones reales por categoría. Avanza sola — o arrástrala, usa las flechas o los puntos.</p>
+      </div>
+
+      <div class="gallery reveal" data-component="gallery" data-autoplay="4200">
+        <div class="gallery-track" tabindex="0" aria-label="Galería de trabajos terminados">
+          <div class="gallery-card"><span class="gallery-tag">Techos · Antes</span><img src="./assets/images/gallery-roof-before.jpg" alt="Techo antes de la remodelación, tejas desgastadas" loading="lazy"><span class="gallery-caption">Techo original — desgaste por sol y lluvia</span></div>
+          <div class="gallery-card"><span class="gallery-tag">Techos · Después</span><img src="./assets/images/gallery-roof-after.jpg" alt="Techo nuevo instalado" loading="lazy"><span class="gallery-caption">Techo nuevo — instalación certificada</span></div>
+          <div class="gallery-card"><span class="gallery-tag">Ventanas · Antes</span><img src="./assets/images/gallery-windows-before.jpg" alt="Ventanas antiguas antes de la remodelación" loading="lazy"><span class="gallery-caption">Ventanas originales — marcos opacos</span></div>
+          <div class="gallery-card"><span class="gallery-tag">Ventanas · Después</span><img src="./assets/images/gallery-windows-after.jpg" alt="Ventanas nuevas de impacto instaladas" loading="lazy"><span class="gallery-caption">Ventanas nuevas — impacto certificado</span></div>
+          <div class="gallery-card"><span class="gallery-tag">Cocina · Antes</span><img src="./assets/images/gallery-kitchen-before.jpg" alt="Cocina antigua antes de la remodelación" loading="lazy"><span class="gallery-caption">Cocina original — años 90</span></div>
+          <div class="gallery-card"><span class="gallery-tag">Cocina · Después</span><img src="./assets/images/gallery-kitchen-after.jpg" alt="Cocina remodelada moderna" loading="lazy"><span class="gallery-caption">Cocina nueva — isla de cuarzo</span></div>
+          <div class="gallery-card"><span class="gallery-tag">Baño · Antes</span><img src="./assets/images/gallery-bathroom-before.jpg" alt="Baño antiguo antes de la remodelación" loading="lazy"><span class="gallery-caption">Baño original — sin renovar desde los 80</span></div>
+          <div class="gallery-card"><span class="gallery-tag">Baño · Después</span><img src="./assets/images/gallery-bathroom-after.jpg" alt="Baño remodelado tipo spa" loading="lazy"><span class="gallery-caption">Baño nuevo — estilo spa</span></div>
+        </div>
+        <div class="gallery-controls">
+          <div class="gallery-dots"></div>
+          <div class="gallery-arrows">
+            <button type="button" class="gallery-arrow" data-gallery-prev aria-label="Foto anterior"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></button>
+            <button type="button" class="gallery-arrow" data-gallery-next aria-label="Foto siguiente"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></button>
+          </div>
+        </div>
+      </div>
+      <p class="gallery-note">* Fotos referenciales generadas para esta propuesta — se reemplazan por proyectos reales de Home Pro Guides antes de producción.</p>
+    </div>
+  </section>
+
+  <!-- ============ CTA final ============ -->
+  <section class="section-dark" style="padding:96px 0; text-align:center;">
+    <div class="container reveal">
+      <span class="eyebrow" style="justify-content:center;">Empecemos</span>
+      <h2 style="font-size:clamp(28px,4vw,42px); max-width:640px; margin:0 auto 22px;">¿Listo para ver tu casa en el próximo antes/después?</h2>
+      <a href="./contacto/index.html" class="btn btn-gold">Solicita tu cotización gratis</a>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div>
+        <div class="logo" style="margin-bottom:14px;"><img src="./assets/images/logo-mark.png" alt="" class="logo-mark" width="24" height="24">Home Pro Guides</div>
+        <p>Remodelación premium de techos, ventanas, cocinas y baños en Florida y California. Un equipo, de principio a fin.</p>
+      </div>
+      <div>
+        <h4>Servicios</h4>
+        <a href="./contacto/roofing.html">Techos</a>
+        <a href="./contacto/windows.html">Ventanas</a>
+        <a href="./contacto/kitchen.html">Cocina</a>
+        <a href="./contacto/bathroom.html">Baños</a>
+      </div>
+      <div>
+        <h4>Compañía</h4>
+        <a href="./index.html#galeria">Galería</a>
+        <a href="./blog/index.html">Blog</a>
+        <a href="./contacto/index.html">Contacto</a>
+      </div>
+      <div>
+        <h4>Contacto</h4>
+        <a href="tel:+18005551234">(800) 555-1234</a>
+        <a href="mailto:hola@homeproguides.com">hola@homeproguides.com</a>
+        <a href="#">Florida &amp; California</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© 2026 Home Pro Guides. Todos los derechos reservados.</span>
+      <span>Propuesta de sitio — prototipo sin backend.</span>
+    </div>
+  </div>
+</footer>
+
+<script src="./js/site.js"></script>
+<script src="./js/scroll-tour.js"></script>
+<script src="./js/gallery.js"></script>
+</body>
+</html>
