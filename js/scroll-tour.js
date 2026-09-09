@@ -127,24 +127,38 @@
     video.style.setProperty('--tour-pos', mqMobile.matches ? f.mobile : f.desktop);
   }
 
-  /* v5: video NATIVO (sin blob-preload forzado). nginx en Sliplane sirve
-     Range requests bien (206 + Content-Range verificados en vivo con
-     curl), así que un <video preload="auto"> puede seekear pidiendo
-     solo los bytes que necesita en vez de forzar la descarga completa
-     del archivo antes de interactuar — eso permite subir la calidad del
-     encode sin pagar el costo de "hay que bajarlo entero primero".
-
-     El bug de desfase que se vio antes en producción (currentTime
-     reportaba el target pero el frame real todavía no había llegado)
-     se ataca con dos cambios en scrubTo(): (1) MENOS seeks por
-     transición (pasos discretos ~90ms en vez de uno por frame de
-     rAF — antes eran ~30-54 pedidos Range por scrub, ahora son
-     ~5-9), y (2) el paso FINAL espera el evento nativo 'seeked' del
-     video (con timeout de seguridad) antes de soltar el candado de
-     animación — no confía ciegamente en que currentTime ya cambió,
-     confirma que el navegador ya decodificó y pintó ese frame. */
+  /* v7: vuelta a blob-preload FORZADO (se probó nativo con preload="auto"
+     primero, como pedía el protocolo — nginx en Sliplane sí sirve Range
+     bien, confirmado con curl, y localmente/con red rápida funcionaba
+     perfecto). Pero en producción real (servidor con ~280KB/s medido)
+     seguía reapareciendo el desfase para SALTOS a zonas del archivo
+     todavía no bufferadas: el evento 'seeked' puede disparar antes de
+     que el frame esté realmente pintado cuando la red es lenta —
+     confirmado en vivo: currentTime ya marcaba 16.5 (Ventanas) pero el
+     video seguía mostrando el frame de Techo varios segundos después.
+     Con blob-preload, una vez cargado el archivo entero NO hay más
+     dependencia de red por scrub — cero riesgo de este bug. El video
+     se recomprimió a ~5MB (crf 27) para que la espera inicial sea
+     razonable (~15-18s a 280KB/s) sin perder nitidez notable. */
   var state = { index: 0, animating: false, ready: false };
   var rafId = null;
+
+  function loadFullVideo(){
+    var sourceEl = video.querySelector('source');
+    var src = (sourceEl && sourceEl.getAttribute('src')) || video.currentSrc;
+    if(!src || typeof fetch !== 'function'){ state.ready = true; return; }
+    fetch(src).then(function(res){ return res.blob(); }).then(function(blob){
+      var blobUrl = URL.createObjectURL(blob);
+      video.addEventListener('loadedmetadata', function(){ state.ready = true; }, { once: true });
+      video.src = blobUrl;
+      video.load();
+    }).catch(function(){
+      /* Si el fetch falla seguimos con el <source> normal streameando —
+         se habilita igual; en el peor caso un scrub muy rápido podría
+         verse levemente atrasado, mejor eso que dejar el tour muerto. */
+      state.ready = true;
+    });
+  }
 
   function clamp(v, min, max){ return Math.max(min, Math.min(max, v)); }
   function easeInOutCubic(t){ return t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2, 3)/2; }
@@ -393,17 +407,21 @@
   }
 
   /* -------- Boot: dejar el video pausado exactamente en la parada 0 --------
-     ready=true en cuanto hay METADATA (duración/dimensiones) — no hace
-     falta esperar a que el archivo termine de bajar entero, porque el
-     seek va a pedir por Range los bytes que le falten en el momento. */
+     Con preload="none" el <video> no descarga nada solo — recién hay
+     'loadedmetadata' cuando loadFullVideo() termina de bajar el blob y
+     lo asigna. Mientras tanto se ve el `poster` (JPG estático) — estado
+     de carga perfectamente válido, título/CTA ya son 100% funcionales.
+     state.ready lo pone en true el propio listener de loadFullVideo(),
+     no acá — así el wheel/drag quedan bloqueados hasta que el archivo
+     completo esté en memoria (cero dependencia de red en cada scrub). */
   function boot(){
     try{ video.currentTime = STOPS[0].time; }catch(e){}
     video.pause();
     updateUI(0);
-    state.ready = true;
   }
   if(video.readyState >= 1){ boot(); }
   else { video.addEventListener('loadedmetadata', boot, { once: true }); }
+  loadFullVideo();
 
   /* Reaplicar el encuadre si cambia el breakpoint (rotar el teléfono, etc.) */
   var mqChangeHandler = function(){ applyFrameFocus(state.index); };
