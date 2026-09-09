@@ -45,13 +45,20 @@
 
       <div class="tour-video-frame">
         <video class="tour-video" muted playsinline preload="auto" poster="./assets/images/tour-poster.jpg" aria-hidden="true">
-          <!-- Servido por jsDelivr (CDN gratis sobre este mismo repo de GitHub) en vez
-               del propio servidor de Sliplane — ese server comparte ancho de banda con
-               el n8n de producción y variaba entre 136-486KB/s, muy inestable. jsDelivr
-               midió ~700-770KB/s constante. Si se sube una versión nueva del video, hay
-               que pushear a GitHub Y purgar la cache de jsDelivr (ver README) o usar la
-               URL con @<commit-sha> en vez de @main para forzar la versión nueva. -->
-          <source src="./assets/video/house-tour.mp4" type="video/mp4">
+          <!-- Servido por Cloudflare R2 (bucket hpg-house-tour-video, cuenta compartida
+               de la agencia, acceso público vía r2.dev) en vez del propio servidor de
+               Sliplane — ese server comparte ancho de banda con el n8n de producción y
+               variaba entre 136-486KB/s, muy inestable. Se probaron antes jsDelivr y
+               GitHub Releases para esto mismo: ambos sirven el archivo con
+               Content-Type: application/octet-stream + Content-Disposition: attachment,
+               así que el navegador nunca los trata como video streameable (se queda
+               pegado en readyState=0 para siempre). R2 sí sirve Content-Type: video/mp4
+               real + Accept-Ranges + moov al inicio (faststart) — confirmado que
+               funciona en Chrome real (no en navegador automatizado por CDP, ese tiene
+               su propia limitación aparte con video cross-origin, no relacionada a R2).
+               Video en alta calidad (1108x832, ~16MB) — el archivo local
+               ./assets/video/house-tour.mp4 queda como fallback/histórico, ya no se usa. -->
+          <source src="https://pub-814429c80a6c4a129a6dfb9fb08f89d5.r2.dev/hpg-house-tour-video.mp4" type="video/mp4">
         </video>
       </div>
       <!-- Solo visible en reduced-motion: hero estático de la parada 0 -->
