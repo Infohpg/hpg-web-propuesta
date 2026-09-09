@@ -21,7 +21,16 @@
 
 .tour{ position: relative; background: var(--bg); }
 .tour-pin{
-  position: relative; height: 100vh; min-height: 560px; overflow: hidden; cursor: grab;
+  /* overflow:clip (no "hidden") a propósito: "hidden" sigue creando un
+     scroll container real, así que el foco nativo del navegador al
+     clickear un <button> del pill-nav (que mide 69px más ancho que
+     este contenedor) le hacía scrollLeft:51 por su cuenta y desalineaba
+     todo el hero horizontalmente — encontrado en vivo con
+     getBoundingClientRect()/scrollLeft, no era el bug de scrollIntoView
+     que ya se había arreglado antes, era este otro. "clip" no crea
+     scroll container, así que ni el navegador ni ningún scrollIntoView
+     lo pueden desalinear. */
+  position: relative; height: 100vh; min-height: 560px; overflow: clip; cursor: grab;
   /* evita que un click-drag sobre el headline/CTA dispare selección de
      texto nativa del navegador en vez del gesto de scrub — se vio en
      vivo un intento de click-drag mientras el tour todavía cargaba

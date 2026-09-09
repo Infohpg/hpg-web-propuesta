@@ -47,6 +47,22 @@
   var navBtns = Array.prototype.slice.call(root.querySelectorAll('.tour-pillnav button'));
   var progressBar = root.querySelector('.tour-progress-bar');
   var hint = root.querySelector('.tour-scroll-hint');
+  var pin = root.querySelector('.tour-pin');
+
+  /* Red de seguridad extra sobre el fix de CSS (overflow:clip en
+     .tour-pin, ver scroll-tour.css) — este contenedor nunca debe
+     scrollear, por nada. Si algo (foco nativo del navegador en un
+     button, una extensión de accesibilidad, lo que sea) le pone
+     scrollLeft/scrollTop != 0, lo corregimos al instante. Encontrado
+     en vivo: clickear un pill-nav button le daba foco nativo al
+     <button>, y el navegador scrolleaba su ancestro scrollable más
+     cercano (.tour-pin, por tener overflow:hidden) para "traerlo a la
+     vista" — desalineaba todo el hero 51px. */
+  if(pin){
+    pin.addEventListener('scroll', function(){
+      if(pin.scrollLeft !== 0 || pin.scrollTop !== 0){ pin.scrollLeft = 0; pin.scrollTop = 0; }
+    }, { passive: true });
+  }
 
   /* Timestamps reales (segundos) — sacados revisando el video con
      ffprobe/ffmpeg, no estimados. Cada uno es el frame donde la
@@ -434,7 +450,7 @@
 
   /* -------- Pill-nav / hint: salto directo (scrub también, no teletransporte) -------- */
   navBtns.forEach(function(btn, i){
-    btn.addEventListener('click', function(){ goTo(i); });
+    btn.addEventListener('click', function(){ goTo(i); btn.blur(); });
   });
   if(hint){
     hint.addEventListener('click', function(){ goTo(1); });
