@@ -450,3 +450,76 @@ ffmpeg -i ORIGINAL.mp4 -vf "eq=brightness=0.06:contrast=1.08:saturation=1.08:gam
 ```
 (y recalcular timestamps si el `-g 12`/framerate cambian).
 
+---
+
+## 10. Bug crítico reportado por Luis/coordinador — "el sitio no reacciona a nada"
+
+Reportado tras probar en Chrome real contra producción: rueda del mouse pasa de largo el hero sin hacer snap, click-drag no reacciona, y click directo en los botones del pill-nav no cambia nada — además apareció un glitch de layout (texto cortado en los bordes). Investigado con Playwright usando gestos reales (`page.mouse.wheel`/`down`/`move`/`up`, no `dispatchEvent` sintético) contra la URL pública, no local. **Encontradas DOS causas raíz reales, no una:**
+
+### 10.1 Causa raíz #1 — sin ninguna señal de que el video sigue cargando
+
+El blob-preload (sección 9.6) puede tardar entre ~6 y ~25+ segundos según
+el ancho de banda real del servidor esa noche (inconsistente, medido).
+Mientras tanto `state.ready=false` y **wheel/drag/pill-nav se ignoran
+silenciosamente a propósito** (para no romper nada a medio cargar) —
+pero no había NINGUNA señal visual de que la página seguía viva. Un
+usuario real testeando en los primeros segundos (comportamiento
+esperable) percibe el sitio como roto, no como "cargando". Confirmado
+reproduciendo exactamente eso: clickear un pill-nav a los 0s de cargada
+la página no hace nada, con video.src todavía vacío.
+
+**Fix:** estado de carga visible (`js/scroll-tour.js` — `setLoadingUI`/
+`markReady`, clase `is-tour-loading` en el HTML por defecto): mientras
+carga, el pill-nav queda atenuado y con `pointer-events:none` (no se
+puede clickear algo que todavía no va a responder — mejor eso que un
+click mudo), y el hint de abajo cambia a "● Cargando el recorrido…"
+con un punto pulsante. Al quedar listo, vuelve a "Scroll para recorrer
+la casa" y el pill-nav se reactiva. Verificado con throttling de red
+real (CDP, 60-150KB/s) — capturas antes/durante/después en
+`scratchpad/qa1/loading_fix/`.
+
+### 10.2 Causa raíz #2 — candado que podía quedar pegado para siempre (bug real, no de timing)
+
+`state.animating` se pone en `true` al arrancar un drag y solo se
+libera cuando `dragRelease()` corre hasta el final. Pero el handler de
+`touchcancel` (interrupciones reales: llamada entrante, gesto del
+sistema, etc.) solo limpiaba `drag = null` y **nunca liberaba el
+candado** — y como wheel/drag/pill-nav (`goTo()`/`dragStart()`)
+chequean ese candado antes de hacer cualquier cosa, un solo
+`touchcancel` a mitad de un gesto dejaba el recorrido **muerto para
+siempre**, sin importar cuánto se esperara. Mismo riesgo con mouse si
+la ventana pierde el foco a mitad de un drag (el `mouseup` puede no
+llegar nunca).
+
+**Fix:** candado con timestamp + auto-liberación de seguridad
+(`clearStuckLock()`, 3 segundos — bien por encima de los ~1.8s que
+tarda como máximo una animación legítima). Se llama al entrar a
+`onWheel`, `dragStart` y `goTo`. Además arreglados los dos casos
+puntuales que lo podían dejar pegado: `touchcancel` ahora sí libera el
+candado, y se agregó un handler de `window.blur` como red de
+seguridad extra para el caso del mouse. También se agregó
+`user-select:none` en `.tour-pin` — el glitch de "texto cortado en los
+bordes" que vio el coordinador es consistente con selección de texto
+nativa disparada por un click-drag que no pudo iniciar el gesto propio
+(porque `!state.ready`) y no hizo `preventDefault()`; ahora ya no
+puede pasar.
+
+**Verificación (no solo "probé y funcionó" — evidencia concreta):**
+contra `https://hpg-web-propuesta.sliplane.app`, replicando los 3
+métodos exactos del reporte:
+1. Wheel scroll rápido (6 eventos) inmediatamente al cargar la página,
+   sin esperar nada → `scrollY` se queda en `0` (antes del fix se iba
+   a las secciones de abajo).
+2. Click-drag inmediato (mismo timing) → pill-nav se queda en
+   "Llegada", `scrollY=0`, y el `<h2>` del panel mide exactamente los
+   mismos márgenes izquierdo/derecho (100px / 560px) antes y después
+   del intento — cero corrimiento horizontal.
+3. Clicks reales (`page.click()`, no `dispatchEvent`) en los 5 botones
+   restantes del pill-nav, uno por uno, ya con el video listo → los 5
+   cambian el `active` correctamente y el `<h2>` mide **exactamente
+   los mismos márgenes (100px / 560px) en los 5 clicks** — sin ningún
+   glitch de layout.
+
+Capturas de las 3 pruebas en `scratchpad/qa1/coord_repro/` (no se
+copiaron al repo del sitio).
+
