@@ -20,7 +20,15 @@
    ============================================================ */
 
 .tour{ position: relative; background: var(--bg); }
-.tour-pin{ position: relative; height: 100vh; min-height: 560px; overflow: hidden; cursor: grab; }
+.tour-pin{
+  position: relative; height: 100vh; min-height: 560px; overflow: hidden; cursor: grab;
+  /* evita que un click-drag sobre el headline/CTA dispare selección de
+     texto nativa del navegador en vez del gesto de scrub — se vio en
+     vivo un intento de click-drag mientras el tour todavía cargaba
+     (antes de este fix) que dejó texto seleccionado / el layout con
+     pinta rara. */
+  user-select: none; -webkit-user-select: none;
+}
 .tour-pin:active{ cursor: grabbing; }
 
 .tour-video-frame{
@@ -106,6 +114,26 @@
 .tour-scroll-hint .chevron{ display:inline-block; animation: tourBob 1.6s var(--ease-in-out) infinite; }
 .tour.is-mid-tour .tour-scroll-hint{ opacity: 0; pointer-events:none; }
 @keyframes tourBob{ 0%,100%{ transform: translateY(0);} 50%{ transform: translateY(5px);} }
+
+/* ---------------- Estado de carga (blob-preload) ----------------
+   El video se precarga entero antes de habilitar scroll/drag/pill-nav
+   (ver scroll-tour.js — evita el bug de desfase de seek con el ancho
+   de banda real e inconsistente del servidor). Esa carga puede tardar
+   varios segundos y variar bastante — sin avisar, el hero se siente
+   "roto" (se probó en vivo: clicks/scroll no hacían nada y no había
+   ninguna señal de que la página seguía cargando). Mientras carga:
+   pill-nav atenuado y no clickeable (evita el "no pasa nada" confuso
+   de clickear algo que en verdad SÍ es un botón pero todavía no
+   responde) + el hint de abajo avisa explícitamente. */
+.tour.is-tour-loading .tour-pillnav{ opacity: .5; pointer-events: none; }
+.tour.is-tour-loading .tour-scroll-hint{ opacity: 1; pointer-events: none; cursor: default; }
+.tour.is-tour-loading .tour-scroll-hint .chevron{ animation: none; }
+.tour-loading-dot{
+  display:inline-block; width:6px; height:6px; border-radius:50%;
+  background: var(--gold); animation: tourLoadingPulse 1s ease-in-out infinite;
+}
+@keyframes tourLoadingPulse{ 0%,100%{ opacity:.25; } 50%{ opacity:1; } }
+.tour.is-tour-loading .tour-pin{ cursor: default; }
 
 @media (max-width: 720px){
   .tour-pillnav{ overflow-x:auto; max-width: 100%; -ms-overflow-style:none; scrollbar-width:none; }

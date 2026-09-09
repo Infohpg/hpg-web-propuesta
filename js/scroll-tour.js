@@ -47,6 +47,7 @@
   var navBtns = Array.prototype.slice.call(root.querySelectorAll('.tour-pillnav button'));
   var progressBar = root.querySelector('.tour-progress-bar');
   var hint = root.querySelector('.tour-scroll-hint');
+  var hintText = root.querySelector('.tour-scroll-hint-text');
 
   /* Timestamps reales (segundos) — sacados revisando el video con
      ffprobe/ffmpeg, no estimados. Cada uno es el frame donde la
@@ -140,23 +141,67 @@
      dependencia de red por scrub — cero riesgo de este bug. El video
      se recomprimió a ~5MB (crf 27) para que la espera inicial sea
      razonable (~15-18s a 280KB/s) sin perder nitidez notable. */
-  var state = { index: 0, animating: false, ready: false };
+  var state = { index: 0, animating: false, ready: false, animatingSince: 0 };
   var rafId = null;
+
+  /* Candado anti-atasco: state.animating puede quedar pegado en `true`
+     para siempre si un gesto se interrumpe de forma anómala (ej.
+     touchcancel real de iOS a mitad de drag, o el navegador perdiendo
+     el mouseup si el usuario suelta fuera de la ventana) — y como TODO
+     entra por goTo()/dragStart(), que chequean `state.animating`, un
+     candado pegado deja el recorrido MUERTO para siempre (encontrado en
+     vivo: "no reacciona a nada" en producción, reproducible). Nunca
+     debería tardar más de ~1.8s en resolver (900ms de scrub + 900ms de
+     margen esperando 'seeked'), así que 3s de sobra es un atasco real,
+     no una animación legítima en curso — se libera solo. */
+  var ANIMATING_SAFETY_MS = 3000;
+  function setAnimating(v){
+    state.animating = v;
+    state.animatingSince = v ? Date.now() : 0;
+  }
+  function clearStuckLock(){
+    if(state.animating && state.animatingSince && (Date.now() - state.animatingSince) > ANIMATING_SAFETY_MS){
+      state.animating = false;
+      state.animatingSince = 0;
+      drag = null;
+      mouseDragging = false;
+    }
+  }
+
+  /* Estado de carga visible — SIN esto el hero se ve "roto" durante los
+     varios segundos (a veces bastantes más, el ancho de banda del
+     server midió entre 5 y 37s en la misma noche) que tarda la
+     precarga completa del blob: probado en vivo, clickear un pill-nav
+     o scrollear en ese lapso no hacía NADA y no había ninguna señal de
+     que la página seguía viva — se sentía roto, no "cargando". */
+  function setLoadingUI(isLoading){
+    root.classList.toggle('is-tour-loading', isLoading);
+    if(hintText){
+      hintText.innerHTML = isLoading
+        ? '<span class="tour-loading-dot"></span> Cargando el recorrido…'
+        : 'Scroll para recorrer la casa';
+    }
+  }
+
+  function markReady(){
+    state.ready = true;
+    setLoadingUI(false);
+  }
 
   function loadFullVideo(){
     var sourceEl = video.querySelector('source');
     var src = (sourceEl && sourceEl.getAttribute('src')) || video.currentSrc;
-    if(!src || typeof fetch !== 'function'){ state.ready = true; return; }
+    if(!src || typeof fetch !== 'function'){ markReady(); return; }
     fetch(src).then(function(res){ return res.blob(); }).then(function(blob){
       var blobUrl = URL.createObjectURL(blob);
-      video.addEventListener('loadedmetadata', function(){ state.ready = true; }, { once: true });
+      video.addEventListener('loadedmetadata', markReady, { once: true });
       video.src = blobUrl;
       video.load();
     }).catch(function(){
       /* Si el fetch falla seguimos con el <source> normal streameando —
          se habilita igual; en el peor caso un scrub muy rápido podría
          verse levemente atrasado, mejor eso que dejar el tour muerto. */
-      state.ready = true;
+      markReady();
     });
   }
 
@@ -227,12 +272,13 @@
 
   function goTo(newIndex){
     if(!state.ready) return; /* metadata del video aún no cargó — ignorar el input, no romper nada visualmente */
+    clearStuckLock();
     newIndex = clamp(newIndex, 0, last);
     if(newIndex === state.index || state.animating) return;
     state.index = newIndex;
-    state.animating = true;
+    setAnimating(true);
     updateUI(newIndex);
-    scrubTo(STOPS[newIndex].time, function(){ state.animating = false; });
+    scrubTo(STOPS[newIndex].time, function(){ setAnimating(false); });
   }
 
   function atPageTop(){ return window.scrollY <= 1; }
@@ -248,6 +294,7 @@
     if(dir === -1 && state.index <= 0) return;   /* primera parada: nada que retroceder, no-op */
 
     e.preventDefault();
+    clearStuckLock();
     if(state.animating || wheelCooldown) return;
     wheelCooldown = true;
     setTimeout(function(){ wheelCooldown = false; }, 140);
@@ -289,6 +336,7 @@
   var DRAG_SEEK_MIN_MS = 70; /* throttle de los seeks durante el drag — no uno por pointermove */
 
   function dragStart(clientY, target){
+    clearStuckLock();
     if(!state.ready || state.animating || !atPageTop() || isInteractive(target)) return false;
     drag = {
       originIndex: state.index,
@@ -298,7 +346,7 @@
       history: [{ y: clientY, t: performance.now() }],
       lastSeekT: 0
     };
-    state.animating = true; /* bloquea wheel/goTo mientras se arrastra */
+    setAnimating(true); /* bloquea wheel/goTo mientras se arrastra */
     try{ video.pause(); }catch(e){}
     return true;
   }
@@ -355,12 +403,12 @@
     var targetIdx = hasIntent ? clamp(d.originIndex + dir, 0, last) : d.originIndex;
 
     if(targetIdx === state.index && video.currentTime === STOPS[state.index].time){
-      state.animating = false; /* ya está exactamente en su lugar, nada que animar */
+      setAnimating(false); /* ya está exactamente en su lugar, nada que animar */
       return;
     }
     state.index = targetIdx;
     updateUI(targetIdx);
-    scrubTo(STOPS[targetIdx].time, function(){ state.animating = false; });
+    scrubTo(STOPS[targetIdx].time, function(){ setAnimating(false); });
   }
 
   /* Touch */
@@ -375,7 +423,14 @@
   }, { passive: false });
 
   root.addEventListener('touchend', function(){ dragRelease(); }, { passive: true });
-  root.addEventListener('touchcancel', function(){ drag = null; }, { passive: true });
+  /* touchcancel (llamada real entrante, gesto del sistema, etc.) — BUG
+     encontrado en vivo: esto limpiaba `drag` pero nunca soltaba
+     `state.animating`, que dragStart() había dejado en `true`. Como
+     wheel/goTo/dragStart chequean ese candado, quedaba TODO el
+     recorrido muerto para siempre tras un solo touchcancel. */
+  root.addEventListener('touchcancel', function(){
+    if(drag){ drag = null; setAnimating(false); }
+  }, { passive: true });
 
   /* Mouse (desktop) — mismo gesto de agarrar/soltar, pedido explícito
      para que el drag sea consistente entre mouse y touch. El wheel de
@@ -396,6 +451,12 @@
     if(!mouseDragging) return;
     mouseDragging = false;
     dragRelease();
+  });
+  /* Seguro extra: si la ventana pierde el foco a mitad de un drag con
+     mouse (alt-tab, devtools, etc.) puede que 'mouseup' nunca llegue —
+     mismo riesgo de candado pegado que el touchcancel de arriba. */
+  window.addEventListener('blur', function(){
+    if(mouseDragging){ mouseDragging = false; drag = null; setAnimating(false); }
   });
 
   /* -------- Pill-nav / hint: salto directo (scrub también, no teletransporte) -------- */
@@ -419,6 +480,7 @@
     video.pause();
     updateUI(0);
   }
+  setLoadingUI(true);
   if(video.readyState >= 1){ boot(); }
   else { video.addEventListener('loadedmetadata', boot, { once: true }); }
   loadFullVideo();
