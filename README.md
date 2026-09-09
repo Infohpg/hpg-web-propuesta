@@ -523,3 +523,85 @@ métodos exactos del reporte:
 Capturas de las 3 pruebas en `scratchpad/qa1/coord_repro/` (no se
 copiaron al repo del sitio).
 
+---
+
+## 11. Cambio de enfoque final — se eliminó el candado global por completo
+
+El fix de la sección 10 (estado de carga visible) **seguía fallando**:
+reportado en vivo que "● Cargando el recorrido…" quedaba pegado para
+siempre aunque el `GET .../house-tour.mp4` ya hubiera devuelto 200
+completo — el listener de `loadedmetadata` que debía liberar el flag
+simplemente no disparaba en ese caso (causa exacta no aislada del todo,
+pero irrelevante: el problema de fondo es la ARQUITECTURA, no el bug
+puntual). **Cualquier diseño con un flag global "bloqueado hasta que
+algo específico pase" es fràgil por definición — si ESE algo no pasa
+por la razón que sea, todo queda muerto para siempre.** Ya van dos
+veces (sección 10.2 y esta) que ese patrón falla en producción de
+formas distintas.
+
+**Cambio de enfoque (pedido explícito, no otro parche sobre lo mismo):**
+se eliminó el candado global por completo. `js/scroll-tour.js` ya no
+tiene ningún `state.ready`, `loadFullVideo()`, `setLoadingUI()` ni
+clase `is-tour-loading` — todo eso se borró. El `<video>` vuelve a
+`preload="auto"` (nativo, sin blob) y es **interactuable desde el
+primer instante** en el que carga el script. nginx en Sliplane sirve
+Range requests bien (confirmado con `curl` — 206 + `Content-Range`
+correctos), así que un seek a una zona todavía no bufferada
+simplemente tarda lo que tarde esa descarga puntual — el navegador la
+maneja solo, sin que ningún JS tenga que decidir "todavía no".
+
+Lo único que sigue existiendo es un candado **por transición** (no
+global): `state.animating` evita que una nueva transición pise a una
+en curso, y se resuelve solo cuando dispara el evento `seeked` de ESA
+seek puntual (con un timeout de seguridad de 2.5s, generoso para redes
+lentas, pero acotado a esa transición — no puede tumbar el resto del
+sitio). El candado anti-atasco de 3s→5s (`clearStuckLock`, sección
+10.2) se mantiene como red de seguridad adicional, ahora con más
+margen.
+
+**Trade-off aceptado explícitamente por el coordinador:** en el peor
+caso de ancho de banda, el primer seek a una parada lejana puede tardar
+unos segundos en verse — no hay forma de eliminar esto sin volver a
+precargar todo (que es exactamente lo que causaba los dos bugs
+anteriores). Se prefiere una demora ocasional y visible a un sitio que
+puede quedar permanentemente muerto.
+
+### Verificación — medición objetiva, no "lo probé y anduvo"
+
+Con Playwright contra `https://hpg-web-propuesta.sliplane.app`,
+capturando `video.currentTime` programáticamente antes/después de cada
+interacción:
+
+**Condiciones normales (sin throttling):**
+```
+[t=4.36s] INMEDIATO (sin esperar nada) -> currentTime=1  readyState=4
+[t=5.42s] 1 wheel tick (1s después)    -> currentTime=7.5   active=Techo   (esperado: 7.5 / Techo)
+[t=6.50s] click "Baño"  (1s después)   -> currentTime=29.5  active=Baño    (esperado: 29.5 / Baño)
+```
+0 errores de consola.
+
+**Condiciones adversas (throttling real vía CDP, 50KB/s — peor que
+cualquier medición real del servidor esta noche):** click directo a
+"Baño" (la parada más lejana, peor caso de distancia) inmediatamente
+al cargar la página, sin esperar nada:
+```
+[t=6.05s] click "Baño" bajo 50KB/s
+[t=6.06s] currentTime=1.00
+[t=6.46s] currentTime=11.01   (en movimiento)
+[t=6.86s] currentTime=29.34   (llegando)
+[t=8.09s] currentTime=29.50   (asentado)
+```
+Resuelve en ~2s incluso en el escenario de red más castigado que se
+probó esta noche — nunca se cuelga, nunca requiere esperar a un flag
+global. Un segundo click disparado a destiempo (mientras la transición
+anterior todavía estaba resolviendo `seeked`) se ignoró una vez —
+comportamiento esperado de debounce, no un cuelgue: un click posterior
+volvió a funcionar de inmediato, confirmado repitiendo la prueba.
+
+**Broad QA final** (10 páginas × desktop/iPhone/Android/reduced-motion,
+40 combinaciones) contra producción: **40/40 `overflow_px=0 errors=[]`**
+(dos corridas previas tuvieron timeouts de red transitorios en `goto()`
+—no relacionados con el código, confirmados como blips pasajeros
+reintentando y con `curl` mostrando <1s de respuesta del servidor en
+el medio— la tercera corrida salió limpia).
+
