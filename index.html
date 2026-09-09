@@ -56,8 +56,16 @@
                real + Accept-Ranges + moov al inicio (faststart) — confirmado que
                funciona en Chrome real (no en navegador automatizado por CDP, ese tiene
                su propia limitación aparte con video cross-origin, no relacionada a R2).
-               Video en alta calidad (1108x832, ~16MB) — el archivo local
-               ./assets/video/house-tour.mp4 queda como fallback/histórico, ya no se usa. -->
+
+               DOS fuentes, el navegador elige la primera que matchee su media query:
+               - Mobile (<=720px): house-tour-mobile.mp4, 640x480/~700kbps/2.8MB, mismo
+                 origen que la página (Sliplane) — no depende de ningún CDN externo, es
+                 el tamaño que ya probamos que carga confiable incluso en red floja.
+               - Desktop: la de R2 en alta calidad (1108x832, ~16MB) — en conexiones de
+                 escritorio normalmente más rápidas/estables, el peso no es problema.
+               Mismo -g 12 @ 24fps en ambos encodes, así que los timestamps de STOPS
+               (múltiplos de 0.5s) valen igual para las dos versiones. -->
+          <source media="(max-width: 720px)" src="./assets/video/house-tour-mobile.mp4" type="video/mp4">
           <source src="https://pub-814429c80a6c4a129a6dfb9fb08f89d5.r2.dev/hpg-house-tour-video.mp4" type="video/mp4">
         </video>
       </div>
