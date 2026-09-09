@@ -54,7 +54,7 @@
      paradas, mantener los timestamps en múltiplos de 0.5s. */
   var STOPS = [
     { time: 1.0,  label: 'Llegada'   },
-    { time: 9.0,  label: 'Techo'     },
+    { time: 7.5,  label: 'Techo'     },
     { time: 14.0, label: 'Ventanas'  },
     { time: 21.0, label: 'Cocina'    },
     { time: 26.0, label: 'Sala'      },
@@ -70,7 +70,7 @@
      scrim. Ajustado a ojo contra capturas reales de cada parada. */
   var WM_HIDE = [
     { scale: 1.14, ty: '-3%'  }, /* 0 Llegada:   marca arriba-izq. */
-    { scale: 1.14, ty: '-3%'  }, /* 1 Techo:     marca arriba-izq. */
+    { scale: 1.18, ty: '5%'   }, /* 1 Techo (7.5s): marca ancha abajo-centro */
     { scale: 1.16, ty: '4%'   }, /* 2 Ventanas:  marca abajo-izq.  */
     { scale: 1.16, ty: '4%'   }, /* 3 Cocina:    marca abajo-der.  */
     { scale: 1.14, ty: '-2%'  }, /* 4 Sala:      marca arriba-der. */
@@ -83,37 +83,24 @@
     videoFrame.style.setProperty('--wm-ty', w.ty);
   }
 
-  /* state.ready=false hasta que el video esté DESCARGADO COMPLETO en
-     memoria (blob local, ver loadFullVideo() más abajo). Streameado
-     por red, cada scrub dispara varias micro-peticiones Range durante
-     los ~450-900ms de la animación — en producción (Sliplane, latencia
-     real) eso hace que currentTime reporte el target pero el frame
-     decodificado se quede atrás (verificado en vivo: currentTime=21
-     con video.buffered todavía en ~14 → se veía el frame de otra
-     parada). El archivo pesa ~5MB, así que precargarlo entero antes de
-     habilitar la interacción es la solución robusta: una sola descarga,
-     cero latencia de red por scrub. Mientras carga, el wheel/touch
-     sigue "pineando" la sección (no se ve raro) pero goTo() no hace
-     nada hasta que ready=true. */
+  /* v5: video NATIVO (sin blob-preload forzado). nginx en Sliplane sirve
+     Range requests bien (206 + Content-Range verificados en vivo con
+     curl), así que un <video preload="auto"> puede seekear pidiendo
+     solo los bytes que necesita en vez de forzar la descarga completa
+     del archivo antes de interactuar — eso permite subir la calidad del
+     encode sin pagar el costo de "hay que bajarlo entero primero".
+
+     El bug de desfase que se vio antes en producción (currentTime
+     reportaba el target pero el frame real todavía no había llegado)
+     se ataca con dos cambios en scrubTo(): (1) MENOS seeks por
+     transición (pasos discretos ~90ms en vez de uno por frame de
+     rAF — antes eran ~30-54 pedidos Range por scrub, ahora son
+     ~5-9), y (2) el paso FINAL espera el evento nativo 'seeked' del
+     video (con timeout de seguridad) antes de soltar el candado de
+     animación — no confía ciegamente en que currentTime ya cambió,
+     confirma que el navegador ya decodificó y pintó ese frame. */
   var state = { index: 0, animating: false, ready: false };
   var rafId = null;
-
-  function loadFullVideo(){
-    var sourceEl = video.querySelector('source');
-    var src = (sourceEl && sourceEl.getAttribute('src')) || video.currentSrc;
-    if(!src || typeof fetch !== 'function'){ state.ready = true; return; }
-    fetch(src).then(function(res){ return res.blob(); }).then(function(blob){
-      var blobUrl = URL.createObjectURL(blob);
-      video.addEventListener('loadedmetadata', function(){ state.ready = true; }, { once: true });
-      video.src = blobUrl;
-      video.load();
-    }).catch(function(){
-      /* Si el fetch falla (CORS, offline, etc.) seguimos con el <source>
-         normal que ya está streameando — se habilita igual, en el peor
-         caso un scrub muy rápido podría verse levemente atrasado. */
-      state.ready = true;
-    });
-  }
 
   function clamp(v, min, max){ return Math.max(min, Math.min(max, v)); }
   function easeInOutCubic(t){ return t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2, 3)/2; }
@@ -139,31 +126,48 @@
     }
   }
 
+  var STEP_MS = 90; /* separación entre seeks intermedios — pocos pedidos Range, no uno por rAF */
+
   function scrubTo(targetTime, onDone){
-    if(rafId) cancelAnimationFrame(rafId);
+    if(rafId) clearTimeout(rafId);
     var start = video.currentTime || 0;
     var delta = targetTime - start;
     if(Math.abs(delta) < 0.02){ onDone(); return; }
     var dur = clamp(Math.abs(delta) * 90, 420, 900);
-    var t0 = performance.now();
-    function step(now){
-      var p = clamp((now - t0) / dur, 0, 1);
-      var eased = easeInOutCubic(p);
-      var v = start + delta * eased;
-      try{ video.currentTime = v; }catch(e){}
-      if(p < 1){
-        rafId = requestAnimationFrame(step);
-      } else {
-        try{ video.currentTime = targetTime; }catch(e){}
+    var steps = clamp(Math.round(dur / STEP_MS), 5, 9);
+    var i = 0;
+
+    function landFinal(){
+      try{ video.currentTime = targetTime; }catch(e){}
+      /* No soltar el candado hasta confirmar que el navegador ya
+         decodificó/pintó ese frame — 'seeked' es la señal real, no
+         un timer optimista. Timeout de seguridad por si el evento
+         no llega (ej. red muy lenta o falla momentánea). */
+      var settled = false;
+      function onSeeked(){
+        if(settled) return;
+        settled = true;
+        video.removeEventListener('seeked', onSeeked);
+        clearTimeout(safety);
         rafId = null;
         onDone();
       }
+      var safety = setTimeout(onSeeked, 900);
+      video.addEventListener('seeked', onSeeked);
     }
-    rafId = requestAnimationFrame(step);
+
+    function step(){
+      i++;
+      if(i >= steps){ landFinal(); return; }
+      var eased = easeInOutCubic(i / steps);
+      try{ video.currentTime = start + delta * eased; }catch(e){}
+      rafId = setTimeout(step, dur / steps);
+    }
+    rafId = setTimeout(step, dur / steps);
   }
 
   function goTo(newIndex){
-    if(!state.ready) return; /* video aún descargando entero — ignorar el input, no romper nada visualmente */
+    if(!state.ready) return; /* metadata del video aún no cargó — ignorar el input, no romper nada visualmente */
     newIndex = clamp(newIndex, 0, last);
     if(newIndex === state.index || state.animating) return;
     state.index = newIndex;
@@ -225,15 +229,18 @@
     hint.addEventListener('click', function(){ goTo(1); });
   }
 
-  /* -------- Boot: dejar el video pausado exactamente en la parada 0 -------- */
+  /* -------- Boot: dejar el video pausado exactamente en la parada 0 --------
+     ready=true en cuanto hay METADATA (duración/dimensiones) — no hace
+     falta esperar a que el archivo termine de bajar entero, porque el
+     seek va a pedir por Range los bytes que le falten en el momento. */
   function boot(){
     try{ video.currentTime = STOPS[0].time; }catch(e){}
     video.pause();
     updateUI(0);
+    state.ready = true;
   }
   if(video.readyState >= 1){ boot(); }
   else { video.addEventListener('loadedmetadata', boot, { once: true }); }
-  loadFullVideo();
 
   /* Si por lo que sea el usuario llega con scrollY>0 pero el hero
      vuelve a quedar pineado (scrollY vuelve a 0), no hace falta nada
