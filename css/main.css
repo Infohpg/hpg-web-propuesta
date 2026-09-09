@@ -20,7 +20,10 @@
    producción, no de esta propuesta.
    ========================================================= */
 
-@import url('https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,300;0,400;0,600;0,700;0,800;0,900;1,400;1,600;1,800&display=swap');
+/* Fuente Nunito: se movió el @import de acá a un <link rel="stylesheet">
+   en el <head> del HTML — @import dentro de un CSS bloquea el parseo de
+   ESTE archivo hasta bajar el import (fetch en serie), un <link> en el
+   HTML se baja en paralelo con el resto y llega antes. */
 
 :root{
   /* color — extraído del manual de marca real */
